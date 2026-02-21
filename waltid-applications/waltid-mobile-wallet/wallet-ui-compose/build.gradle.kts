@@ -1,5 +1,5 @@
 plugins {
-    id("waltid.multiplatform.library")
+    id("waltid.multiplatform.library.mobile")
 }
 
 group = "id.walt.mobilewallet"

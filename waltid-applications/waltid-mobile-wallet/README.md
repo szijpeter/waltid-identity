@@ -30,6 +30,11 @@ Phase 1 focuses on core credential, DID, key, issuance, and presentation flows.
   - SD-JWT VC
   - mdoc (`mso_mdoc`)
 
+## Build targets
+
+- Shared mobile-wallet modules currently target JVM (and iOS when `enableIosBuild=true`).
+- JavaScript targets are temporarily disabled for `wallet-model`, `wallet-domain`, `wallet-data`, and `wallet-ui-compose` to keep mobile-wallet builds reliable in phase 1.
+
 ## Additional docs
 
 - `ARCHITECTURE.md`

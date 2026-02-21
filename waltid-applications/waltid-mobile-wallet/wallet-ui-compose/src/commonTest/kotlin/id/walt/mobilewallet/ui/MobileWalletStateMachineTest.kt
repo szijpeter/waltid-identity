@@ -18,6 +18,7 @@ import id.walt.mobilewallet.domain.ResolvePresentationUseCase
 import id.walt.mobilewallet.domain.SetDefaultDidUseCase
 import id.walt.mobilewallet.domain.SignVerifyUseCase
 import id.walt.mobilewallet.domain.SubmitPresentationUseCase
+import id.walt.mobilewallet.domain.WalletError
 import id.walt.mobilewallet.domain.WalletResult
 import id.walt.mobilewallet.model.CredentialDetail
 import id.walt.mobilewallet.model.CredentialFormat
@@ -96,6 +97,49 @@ class MobileWalletStateMachineTest {
         val state = machine.state.value
         assertIs<WalletRoute.Presentation>(state.route)
         assertNotNull(state.pendingPresentation)
+    }
+
+    @Test
+    fun scanPresentationWithClientIdSchemeUsesOpenId4vp10Mode() = runTest {
+        val machine = buildStateMachine()
+        val walletId = WalletId.validate("wallet-ui-test").orThrow()
+        machine.bootstrap(walletId)
+
+        machine.updateScanInput(
+            "openid4vp://authorize?response_type=vp_token&client_id_scheme=x509_san_dns&response_uri=https://verifier.example.com"
+        )
+        machine.handleScanInput()
+
+        val pendingPresentation = assertNotNull(machine.state.value.pendingPresentation)
+        assertEquals(ProtocolMode.OPENID4VP_1_0, pendingPresentation.request.protocolMode)
+    }
+
+    @Test
+    fun scanPresentationWithPresentationDefinitionUriUsesOpenId4vp10Mode() = runTest {
+        val machine = buildStateMachine()
+        val walletId = WalletId.validate("wallet-ui-test").orThrow()
+        machine.bootstrap(walletId)
+
+        machine.updateScanInput(
+            "openid4vp://authorize?response_type=vp_token&presentation_definition_uri=https://verifier.example.com/pd.json"
+        )
+        machine.handleScanInput()
+
+        val pendingPresentation = assertNotNull(machine.state.value.pendingPresentation)
+        assertEquals(ProtocolMode.OPENID4VP_1_0, pendingPresentation.request.protocolMode)
+    }
+
+    @Test
+    fun scanUnknownRequestSetsUnsupportedError() = runTest {
+        val machine = buildStateMachine()
+        val walletId = WalletId.validate("wallet-ui-test").orThrow()
+        machine.bootstrap(walletId)
+
+        machine.updateScanInput("https://example.org/not-supported")
+        machine.handleScanInput()
+
+        val error = assertIs<WalletError.Unsupported>(machine.state.value.lastError)
+        assertEquals("Unknown scan request type.", error.message)
     }
 
     @Test

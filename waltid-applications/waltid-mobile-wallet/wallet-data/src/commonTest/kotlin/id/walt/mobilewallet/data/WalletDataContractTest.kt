@@ -1,5 +1,7 @@
 package id.walt.mobilewallet.data
 
+import id.walt.mobilewallet.domain.WalletError
+import id.walt.mobilewallet.domain.WalletResult
 import id.walt.mobilewallet.model.CredentialFormat
 import id.walt.mobilewallet.model.CredentialId
 import id.walt.mobilewallet.model.DidId
@@ -97,6 +99,52 @@ class WalletDataContractTest {
         assertEquals(1, credentials.size)
         assertEquals(CredentialFormat.W3C_JWT_VC_JSON, credentials.first().format)
         assertEquals(CredentialId.validate("cred-1").orThrow(), credentials.first().id)
+    }
+
+    @Test
+    fun resolvePresentationFailsWhenNoPresentationDefinitionInResolvedRequest() = runTest {
+        val backend = FakeBackendApi().apply {
+            resolvedPresentationRequest = "openid4vp://authorize?response_type=vp_token"
+        }
+
+        val repository = ApiExchangeRepository(backend)
+        val walletId = WalletId.validate("wallet-data-test").orThrow()
+        val result = repository.resolvePresentation(
+            PresentationRequest(
+                walletId = walletId,
+                rawRequest = "openid4vp://authorize?response_type=vp_token",
+                verifierHost = "verifier.example.org",
+                requestedCredentialTypes = emptyList(),
+                protocolMode = ProtocolMode.DRAFT_COMPAT,
+            )
+        )
+
+        val error = assertIs<WalletResult.Failure>(result).error
+        val validation = assertIs<WalletError.Validation>(error)
+        assertEquals("invalid_argument", validation.issues.single().code)
+    }
+
+    @Test
+    fun resolvePresentationFailsWhenPresentationDefinitionIsMalformed() = runTest {
+        val backend = FakeBackendApi().apply {
+            resolvedPresentationRequest = "openid4vp://authorize?presentation_definition=%7Bnot-valid-json"
+        }
+
+        val repository = ApiExchangeRepository(backend)
+        val walletId = WalletId.validate("wallet-data-test").orThrow()
+        val result = repository.resolvePresentation(
+            PresentationRequest(
+                walletId = walletId,
+                rawRequest = "openid4vp://authorize?response_type=vp_token",
+                verifierHost = "verifier.example.org",
+                requestedCredentialTypes = emptyList(),
+                protocolMode = ProtocolMode.DRAFT_COMPAT,
+            )
+        )
+
+        val error = assertIs<WalletResult.Failure>(result).error
+        val validation = assertIs<WalletError.Validation>(error)
+        assertEquals("invalid_argument", validation.issues.single().code)
     }
 }
 

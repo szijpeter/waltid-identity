@@ -13,6 +13,7 @@
 | Security settings model | Required | Implemented | Repository abstraction + in-memory baseline |
 | Biometric gating hook | Required | Implemented (abstraction) | Host implementation to provide concrete biometric UX |
 | Encrypted local state | Required | Implemented (abstraction) | `EncryptedSecureStateStore` + pluggable cipher |
+| Shared module JS target | Deferred | Not implemented | Temporarily disabled for phase-1 reliability; mobile targets remain primary |
 | OpenID4VP 1.0 preference | Required | Partial | Standards-first classifier and compatibility fallback |
 | NFT/web3 screens | Deferred | Not implemented | Out of phase-1 scope |
 | Eventlog/history/reporting parity | Deferred | Not implemented | Out of phase-1 scope |
