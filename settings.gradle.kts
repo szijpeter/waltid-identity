@@ -96,6 +96,15 @@ val modules = listOfNotNull(
     // CLI
     "$applications:waltid-cli",
 
+    * "$applications:waltid-mobile-wallet".group(
+        "wallet-model",
+        "wallet-domain",
+        "wallet-data",
+        "wallet-ui-compose",
+        "wallet-app-android" whenEnabled enableAndroidBuild,
+        "wallet-app-ios" whenEnabled enableIosBuild,
+    ),
+
     ":waltid-applications:waltid-android" whenEnabled enableAndroidBuild,
 
     "$applications:waltid-openid4vc-ios-testApp" whenEnabled enableIosBuild,
