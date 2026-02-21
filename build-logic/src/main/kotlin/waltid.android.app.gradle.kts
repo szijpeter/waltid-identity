@@ -13,8 +13,6 @@ val javaVersion = identityLibs.findVersion("java-library").get().requiredVersion
 
 // 2. Configure the Android Extension
 android {
-    namespace = project.group.toString()
-
     compileSdk = 36
     defaultConfig { minSdk = 30 }
     compileOptions {

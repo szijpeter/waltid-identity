@@ -1,6 +1,5 @@
 plugins {
     id("waltid.android.app")
-    kotlin("plugin.serialization")
 }
 
 group = "id.walt.mobilewallet.app"

@@ -1,7 +1,6 @@
 plugins {
     kotlin("multiplatform")
     kotlin("native.cocoapods")
-    kotlin("plugin.serialization")
 }
 
 group = "id.walt.mobilewallet.app"

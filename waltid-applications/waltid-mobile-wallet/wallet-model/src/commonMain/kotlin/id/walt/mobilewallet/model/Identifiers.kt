@@ -1,6 +1,7 @@
 package id.walt.mobilewallet.model
 
 import kotlinx.serialization.Serializable
+import kotlin.jvm.JvmInline
 
 private const val BLANK_IDENTIFIER_CODE = "blank_identifier"
 
