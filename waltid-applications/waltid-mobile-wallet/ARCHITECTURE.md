@@ -1,0 +1,58 @@
+# Mobile Wallet Architecture (Phase 1)
+
+## Goals
+
+- Shared Kotlin implementation for Android and iOS.
+- Standards-first OID4VC/OID4VP integration with compatibility seams.
+- Minimal dependencies outside walt.id and kotlinx ecosystems.
+- Clean separation between model/domain/data/ui layers.
+
+## Layering
+
+1. `wallet-model`
+- Serializable value objects and request/response models.
+- Validation utilities and strongly typed IDs.
+- No platform code.
+
+2. `wallet-domain`
+- Sealed wallet error model and result wrappers.
+- Repository interfaces for credentials, exchange, DIDs, keys, and security.
+- Use-cases for scan handling, issuance, presentation, credential browsing, DID and key management.
+
+3. `wallet-data`
+- Wallet API adapter (`WalletBackendApi`) with Ktor implementation.
+- DTO-to-domain mappers and protocol compatibility classification.
+- API repository implementations used by domain use-cases.
+- Secure state store abstractions (`SecureStateStore`, `StateCipher`).
+
+4. `wallet-ui-compose`
+- Shared state machine (`MobileWalletStateMachine`) for:
+  - dashboard
+  - scan/manual input
+  - issuance
+  - presentation
+  - credential detail
+  - DID/key settings
+- UI route/state model independent of host platform.
+
+5. Host apps
+- `wallet-app-android`: Android shell with Compose host activity.
+- `wallet-app-ios`: iOS shell bootstrap module for shared flow embedding.
+
+## Protocol strategy
+
+- OpenID4VP 1.0 path where available.
+- Draft compatibility retained to interoperate with current web wallet API behavior.
+- Issuance flow resolves offer metadata and types using wallet API parity endpoints.
+
+## Security strategy
+
+- Security repository abstraction for biometric gate checks and integrity signals.
+- Encrypted state persistence abstraction with pluggable cipher (no-op default, host override expected).
+
+## Test strategy
+
+- `wallet-model`: validation tests.
+- `wallet-domain`: use-case behavior tests.
+- `wallet-data`: contract and parser tests with fake backend API.
+- `wallet-ui-compose`: state machine flow tests.
