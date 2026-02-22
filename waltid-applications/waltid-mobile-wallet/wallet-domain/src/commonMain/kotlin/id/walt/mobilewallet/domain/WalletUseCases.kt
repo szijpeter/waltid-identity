@@ -25,7 +25,21 @@ import id.walt.mobilewallet.model.ScannedRequestKind
 import id.walt.mobilewallet.model.ValidationIssue
 import id.walt.mobilewallet.model.WalletId
 
+data class ScannedRequestClassification(
+    val kind: ScannedRequestKind,
+    val protocolMode: id.walt.mobilewallet.model.ProtocolMode,
+)
+
 class HandleScannedRequestUseCase {
+    fun classify(rawRequest: String): ScannedRequestClassification {
+        val normalized = rawRequest.trim()
+        val lower = normalized.lowercase()
+        return ScannedRequestClassification(
+            kind = detectKind(lower),
+            protocolMode = detectProtocolMode(lower),
+        )
+    }
+
     operator fun invoke(rawRequest: String): WalletResult<ScannedRequest> {
         val normalized = rawRequest.trim()
         if (normalized.isEmpty()) {
@@ -42,12 +56,11 @@ class HandleScannedRequestUseCase {
             )
         }
 
-        val kind = detectKind(normalized)
+        val kind = classify(normalized).kind
         return ScannedRequest(raw = normalized, kind = kind).validate().toWalletResult()
     }
 
-    private fun detectKind(rawRequest: String): ScannedRequestKind {
-        val lower = rawRequest.lowercase()
+    private fun detectKind(lower: String): ScannedRequestKind {
         return when {
             lower.startsWith("openid-initiate-issuance://") -> ScannedRequestKind.ISSUANCE
             lower.startsWith("openid-credential-offer://") -> ScannedRequestKind.ISSUANCE
@@ -57,6 +70,13 @@ class HandleScannedRequestUseCase {
             lower.contains("presentation_definition=") -> ScannedRequestKind.PRESENTATION
             else -> ScannedRequestKind.UNKNOWN
         }
+    }
+
+    private fun detectProtocolMode(lower: String): id.walt.mobilewallet.model.ProtocolMode = when {
+        lower.contains("dcql_query=") -> id.walt.mobilewallet.model.ProtocolMode.OPENID4VP_1_0
+        lower.contains("client_id_scheme=") -> id.walt.mobilewallet.model.ProtocolMode.OPENID4VP_1_0
+        lower.contains("presentation_definition_uri=") -> id.walt.mobilewallet.model.ProtocolMode.OPENID4VP_1_0
+        else -> id.walt.mobilewallet.model.ProtocolMode.DRAFT_COMPAT
     }
 }
 

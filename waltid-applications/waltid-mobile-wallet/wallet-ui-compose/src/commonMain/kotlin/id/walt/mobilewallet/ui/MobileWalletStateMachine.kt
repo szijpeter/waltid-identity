@@ -11,6 +11,7 @@ import id.walt.mobilewallet.domain.ResolvePresentationUseCase
 import id.walt.mobilewallet.domain.SetDefaultDidUseCase
 import id.walt.mobilewallet.domain.SignVerifyUseCase
 import id.walt.mobilewallet.domain.SubmitPresentationUseCase
+import id.walt.mobilewallet.domain.WalletError
 import id.walt.mobilewallet.domain.WalletResult
 import id.walt.mobilewallet.domain.getOrNull
 import id.walt.mobilewallet.domain.onFailure
@@ -21,7 +22,6 @@ import id.walt.mobilewallet.model.IssuanceRequest
 import id.walt.mobilewallet.model.KeyVerifyRequest
 import id.walt.mobilewallet.model.PresentationRequest
 import id.walt.mobilewallet.model.PresentationSelection
-import id.walt.mobilewallet.model.ProtocolMode
 import id.walt.mobilewallet.model.ScannedRequestKind
 import id.walt.mobilewallet.model.WalletId
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -87,18 +87,43 @@ class MobileWalletStateMachine(
         _state.update { it.copy(scanInput = value, route = WalletRoute.Scan, lastError = null) }
     }
 
+    suspend fun submitIncomingRequest(rawRequest: String) {
+        if (state.value.isLoading) return
+        updateScanInput(rawRequest)
+        handleScanInput()
+    }
+
+    fun dismissError() {
+        _state.update { it.copy(lastError = null) }
+    }
+
+    fun cancelCurrentFlow() {
+        _state.update {
+            it.copy(
+                route = WalletRoute.Dashboard,
+                pendingIssuance = null,
+                pendingPresentation = null,
+                scanInput = "",
+                isLoading = false,
+                lastError = null,
+            )
+        }
+    }
+
     suspend fun handleScanInput() {
+        if (state.value.isLoading) return
         val walletId = state.value.walletId ?: return
         val raw = state.value.scanInput
+        val classification = handleScannedRequestUseCase.classify(raw)
         _state.update { it.copy(isLoading = true, lastError = null) }
 
-        when (val scanned = handleScannedRequestUseCase(raw)) {
-            is WalletResult.Failure -> consumeError(scanned.error)
-            is WalletResult.Success -> when (scanned.value.kind) {
+        when (val scanResult = handleScannedRequestUseCase(raw)) {
+            is WalletResult.Failure -> consumeError(scanResult.error)
+            is WalletResult.Success -> when (classification.kind) {
                 ScannedRequestKind.ISSUANCE -> resolveIssuance(walletId, raw)
-                ScannedRequestKind.PRESENTATION -> resolvePresentation(walletId, raw)
+                ScannedRequestKind.PRESENTATION -> resolvePresentation(walletId, raw, classification.protocolMode)
                 ScannedRequestKind.UNKNOWN -> _state.update {
-                    it.copy(lastError = id.walt.mobilewallet.domain.WalletError.Unsupported("Unknown scan request type."))
+                    it.copy(lastError = WalletError.Unsupported("Unknown scan request type."))
                 }
             }
         }
@@ -107,8 +132,10 @@ class MobileWalletStateMachine(
     }
 
     suspend fun acceptIssuance(didId: DidId? = null) {
+        if (state.value.isLoading) return
         val walletId = state.value.walletId ?: return
         val request = state.value.scanInput
+        _state.update { it.copy(isLoading = true, lastError = null) }
         acceptIssuanceUseCase(
             IssuanceRequest(
                 walletId = walletId,
@@ -125,10 +152,13 @@ class MobileWalletStateMachine(
             }
             refreshDashboard()
         }.onFailure(::consumeError)
+        _state.update { it.copy(isLoading = false) }
     }
 
     suspend fun submitPresentation(selectedCredentialIds: List<CredentialId>, disclosures: Map<String, List<String>>) {
+        if (state.value.isLoading) return
         val pending = state.value.pendingPresentation ?: return
+        _state.update { it.copy(isLoading = true, lastError = null) }
         submitPresentationUseCase(
             PresentationSelection(
                 request = pending.request,
@@ -144,6 +174,7 @@ class MobileWalletStateMachine(
                 )
             }
         }.onFailure(::consumeError)
+        _state.update { it.copy(isLoading = false) }
     }
 
     suspend fun openCredentialDetail(credentialId: CredentialId) {
@@ -211,15 +242,22 @@ class MobileWalletStateMachine(
         resolveIssuanceUseCase(IssuanceRequest(walletId = walletId, rawRequest = raw))
             .onSuccess { preview ->
                 _state.update { current ->
-                    current.copy(route = WalletRoute.Issuance, pendingIssuance = preview)
+                    current.copy(
+                        route = WalletRoute.Issuance,
+                        pendingIssuance = preview,
+                        pendingPresentation = null,
+                    )
                 }
             }
             .onFailure(::consumeError)
     }
 
-    private suspend fun resolvePresentation(walletId: WalletId, raw: String) {
+    private suspend fun resolvePresentation(
+        walletId: WalletId,
+        raw: String,
+        protocolMode: id.walt.mobilewallet.model.ProtocolMode,
+    ) {
         val host = extractHost(raw)
-        val protocolMode = extractProtocolMode(raw)
         resolvePresentationUseCase(
             PresentationRequest(
                 walletId = walletId,
@@ -230,12 +268,16 @@ class MobileWalletStateMachine(
             )
         ).onSuccess { resolution ->
             _state.update { current ->
-                current.copy(route = WalletRoute.Presentation, pendingPresentation = resolution)
+                current.copy(
+                    route = WalletRoute.Presentation,
+                    pendingPresentation = resolution,
+                    pendingIssuance = null,
+                )
             }
         }.onFailure(::consumeError)
     }
 
-    private fun consumeError(error: id.walt.mobilewallet.domain.WalletError) {
+    private fun consumeError(error: WalletError) {
         _state.update { it.copy(lastError = error) }
     }
 
@@ -246,16 +288,6 @@ class MobileWalletStateMachine(
             return responseUri.substringAfter("://").substringBefore('/').substringBefore('?')
         }
         return rawRequest.substringAfter("://", "unknown").substringBefore('/').substringBefore('?')
-    }
-
-    private fun extractProtocolMode(rawRequest: String): ProtocolMode {
-        val lower = rawRequest.lowercase()
-        return when {
-            lower.contains("dcql_query=") -> ProtocolMode.OPENID4VP_1_0
-            lower.contains("client_id_scheme=") -> ProtocolMode.OPENID4VP_1_0
-            lower.contains("presentation_definition_uri=") -> ProtocolMode.OPENID4VP_1_0
-            else -> ProtocolMode.DRAFT_COMPAT
-        }
     }
 
     private fun regexExtract(input: String, pattern: String): String {

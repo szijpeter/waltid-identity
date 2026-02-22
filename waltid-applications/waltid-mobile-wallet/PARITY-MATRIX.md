@@ -2,6 +2,7 @@
 
 | Capability | Web Wallet Parity | Mobile Wallet Phase 1 Status | Notes |
 |---|---|---|---|
+| Android host runtime E2E slice (dashboard -> intake -> issuance/presentation) | Required for mobile readiness | In progress | Shared core implemented; Android host integration and manual acceptance gates active |
 | Credential dashboard list | Required | Implemented | Shared state machine + repository mapping |
 | Credential detail view model | Required | Implemented | Detail use-case + model mappers |
 | Scan/manual request intake | Required | Implemented | `HandleScannedRequestUseCase` + UI state |
@@ -13,6 +14,7 @@
 | Security settings model | Required | Implemented | Repository abstraction + in-memory baseline |
 | Biometric gating hook | Required | Implemented (abstraction) | Host implementation to provide concrete biometric UX |
 | Encrypted local state | Required | Implemented (abstraction) | `EncryptedSecureStateStore` + pluggable cipher |
+| iOS host runtime parity | Required (later) | Deferred | Explicitly deferred until Android fast-path stabilization |
 | Shared module JS target | Deferred | Not implemented | Temporarily disabled for phase-1 reliability; mobile targets remain primary |
 | OpenID4VP 1.0 preference | Required | Partial | Standards-first classifier and compatibility fallback |
 | NFT/web3 screens | Deferred | Not implemented | Out of phase-1 scope |

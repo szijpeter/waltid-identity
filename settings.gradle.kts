@@ -3,6 +3,8 @@
 fun getSetting(name: String) = providers.gradleProperty(name).orNull.toBoolean()
 val enableAndroidBuild = getSetting("enableAndroidBuild")
 val enableIosBuild = getSetting("enableIosBuild")
+val includeLegacyWaltidAndroidApp = getSetting("includeLegacyWaltidAndroidApp")
+val enableMobileWalletAndroidBuild = getSetting("enableMobileWalletAndroidBuild")
 
 infix fun String.whenEnabled(setting: Boolean) = if (setting) this else null
 fun String.group(vararg elements: String?) = elements.map { it?.let { "$this:$it" } }.toTypedArray()
@@ -101,11 +103,11 @@ val modules = listOfNotNull(
         "wallet-domain",
         "wallet-data",
         "wallet-ui-compose",
-        "wallet-app-android" whenEnabled enableAndroidBuild,
+        "wallet-app-android" whenEnabled (enableAndroidBuild || enableMobileWalletAndroidBuild),
         "wallet-app-ios" whenEnabled enableIosBuild,
     ),
 
-    ":waltid-applications:waltid-android" whenEnabled enableAndroidBuild,
+    ":waltid-applications:waltid-android" whenEnabled (enableAndroidBuild && includeLegacyWaltidAndroidApp),
 
     "$applications:waltid-openid4vc-ios-testApp" whenEnabled enableIosBuild,
     "$applications:waltid-openid4vc-ios-testApp:shared" whenEnabled enableIosBuild

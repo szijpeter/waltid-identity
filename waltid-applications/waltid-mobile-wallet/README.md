@@ -1,4 +1,4 @@
-# walt.id Mobile Wallet (Phase 1)
+# walt.id Mobile Wallet (Phase 1 / Fast Path)
 
 This directory contains the new Kotlin Multiplatform mobile wallet modules:
 
@@ -6,10 +6,17 @@ This directory contains the new Kotlin Multiplatform mobile wallet modules:
 - `wallet-domain`: shared use-cases and orchestration contracts
 - `wallet-data`: shared repository and protocol adapter implementations
 - `wallet-ui-compose`: shared UI state/navigation contracts for Compose-based apps
-- `wallet-app-android`: Android host app shell
-- `wallet-app-ios`: iOS host framework shell
+- `wallet-app-android`: Android host app (fast-path delivery target)
+- `wallet-app-ios`: iOS host framework shell (deferred runtime parity)
 
 Phase 1 focuses on core credential, DID, key, issuance, and presentation flows.
+
+## Current delivery status
+
+- Shared core (`wallet-model`, `wallet-domain`, `wallet-data`, `wallet-ui-compose`) is implemented.
+- Android host is now the active fast-path integration target and is being wired for real backend runtime operation.
+- iOS host runtime parity is deferred until Android fast-path manual acceptance is complete.
+- Automated test expansion is deferred in this cycle; manual acceptance scenarios are tracked in `.ai/mobile-wallet/STATUS.yaml`.
 
 ## Module architecture
 
@@ -17,8 +24,8 @@ Phase 1 focuses on core credential, DID, key, issuance, and presentation flows.
 - `wallet-domain`: Repository contracts, error model (`WalletError`), and orchestration use-cases.
 - `wallet-data`: Wallet API adapters, protocol compatibility parsers, repository implementations, and secure-state abstractions.
 - `wallet-ui-compose`: Shared flow state machine, navigation route model, and UI-facing state.
-- `wallet-app-android`: Android host entry point for shared mobile wallet flows.
-- `wallet-app-ios`: iOS host bridge for shared mobile wallet flows.
+- `wallet-app-android`: Android host entry point and runtime composition root for fast-path delivery.
+- `wallet-app-ios`: iOS host bridge for shared mobile wallet flows (runtime wiring deferred in this cycle).
 
 ## Standards direction
 

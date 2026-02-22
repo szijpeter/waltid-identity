@@ -1,4 +1,4 @@
-# Mobile Wallet Architecture (Phase 1)
+# Mobile Wallet Architecture (Phase 1 / Android Fast Path)
 
 ## Goals
 
@@ -6,6 +6,7 @@
 - Standards-first OID4VC/OID4VP integration with compatibility seams.
 - Minimal dependencies outside walt.id and kotlinx ecosystems.
 - Clean separation between model/domain/data/ui layers.
+- Deliver a usable Android runtime slice first; defer iOS host runtime parity.
 
 ## Layering
 
@@ -36,8 +37,23 @@
 - UI route/state model independent of host platform.
 
 5. Host apps
-- `wallet-app-android`: Android shell with Compose host activity.
-- `wallet-app-ios`: iOS shell bootstrap module for shared flow embedding.
+- `wallet-app-android`: Android runtime host with Compose UI shell and dependency composition root.
+- `wallet-app-ios`: iOS shell bootstrap module for shared flow embedding (runtime composition deferred).
+
+## Android fast-path composition root
+
+- Runtime values are provided through Android BuildConfig:
+  - `WALLET_BASE_URL`
+  - `WALLET_ID`
+  - `WALLET_BEARER_TOKEN` (optional)
+- `wallet-app-android` validates runtime config at startup and fails fast on missing mandatory values.
+- `MobileWalletDependencies` composes:
+  - Ktor `HttpClient`
+  - `KtorWalletBackendApi`
+  - API repositories (`ApiCredentialRepository`, `ApiDidRepository`, `ApiKeyRepository`, `ApiExchangeRepository`)
+  - shared use-cases
+  - `MobileWalletStateMachine`
+- `MainActivity` is a thin route-driven host that binds Compose actions to shared state-machine methods.
 
 ## Protocol strategy
 
@@ -56,3 +72,4 @@
 - `wallet-domain`: use-case behavior tests.
 - `wallet-data`: contract and parser tests with fake backend API.
 - `wallet-ui-compose`: state machine flow tests.
+- Android fast-path currently uses manual acceptance gates; additional automated tests are deferred to follow-up.
