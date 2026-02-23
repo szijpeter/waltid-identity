@@ -14,6 +14,7 @@ import id.walt.mobilewallet.model.WalletId
  */
 class ApiAuthRepository(
     private val backendApi: WalletBackendApi,
+    private val secureStateStore: SecureStateStore,
     private val onTokenReceived: (String) -> Unit,
 ) : AuthRepository {
 
@@ -22,14 +23,19 @@ class ApiAuthRepository(
         val token = loginResponse.token
             ?: throw WalletApiException(message = "Login response did not contain a token.")
 
-        // Hand token to the Ktor Auth plugin via the callback.
-        onTokenReceived(token)
-
         val walletListing = backendApi.listWallets()
         val firstWallet = walletListing.wallets.firstOrNull()
             ?: throw WalletApiException(message = "No wallets found for this account.")
 
         val walletId = WalletId(firstWallet.id)
+
+        // Persist token and wallet ID for session restoration
+        secureStateStore.put("auth_token", token)
+        secureStateStore.put("auth_wallet_id", walletId.value)
+
+        // Hand token to the Ktor Auth plugin via the callback.
+        onTokenReceived(token)
+
         AuthSession(token = token, walletId = walletId)
     }
 }

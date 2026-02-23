@@ -25,6 +25,9 @@ kotlin {
             implementation(project(":waltid-applications:waltid-mobile-wallet:wallet-ui-compose"))
             implementation(project(":waltid-applications:waltid-mobile-wallet:wallet-domain"))
             implementation(project(":waltid-applications:waltid-mobile-wallet:wallet-model"))
+            implementation(project(":waltid-applications:waltid-mobile-wallet:wallet-data"))
+            implementation(identityLibs.multiplatform.settings)
+            implementation(identityLibs.ktor.client.darwin)
             implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.10.2")
         }
 

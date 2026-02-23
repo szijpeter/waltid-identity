@@ -65,7 +65,7 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         val startupError = runCatching {
             val runtimeConfig = MobileWalletRuntimeConfig.fromBuildConfig()
-            dependencies = MobileWalletDependencies.create(runtimeConfig)
+            dependencies = MobileWalletDependencies.create(applicationContext, runtimeConfig)
         }.exceptionOrNull()
 
         setContent {
@@ -133,7 +133,6 @@ private fun WalletAppRoot(
             .verticalScroll(rememberScrollState())
     ) {
         Text(text = "walt.id Mobile Wallet", style = MaterialTheme.typography.headlineSmall)
-        Text(text = "Android fast path", style = MaterialTheme.typography.bodyMedium)
         Spacer(modifier = Modifier.height(12.dp))
 
         state.lastError?.let { error ->

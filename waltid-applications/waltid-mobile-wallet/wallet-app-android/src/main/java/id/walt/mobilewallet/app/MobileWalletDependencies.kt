@@ -27,6 +27,16 @@ import io.ktor.client.plugins.auth.providers.bearer
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.serialization.kotlinx.json.json
 import kotlinx.serialization.json.Json
+import android.content.Context
+import androidx.security.crypto.EncryptedSharedPreferences
+import androidx.security.crypto.MasterKey
+import com.russhwolf.settings.SharedPreferencesSettings
+import id.walt.mobilewallet.data.InMemorySecurityRepository
+import id.walt.mobilewallet.data.KmpSecureStateStore
+import kotlinx.coroutines.DelicateCoroutinesApi
+import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.launch
+import id.walt.mobilewallet.model.WalletId
 
 class MobileWalletDependencies private constructor(
     val stateMachine: MobileWalletStateMachine,
@@ -37,11 +47,26 @@ class MobileWalletDependencies private constructor(
     }
 
     companion object {
-        fun create(config: MobileWalletRuntimeConfig): MobileWalletDependencies {
+        @OptIn(DelicateCoroutinesApi::class)
+        fun create(context: Context, config: MobileWalletRuntimeConfig): MobileWalletDependencies {
             val json = Json {
                 ignoreUnknownKeys = true
                 explicitNulls = false
             }
+
+            val masterKey = MasterKey.Builder(context)
+                .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
+                .build()
+
+            val sharedPreferences = EncryptedSharedPreferences.create(
+                context,
+                "secure_wallet_prefs",
+                masterKey,
+                EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
+                EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
+            )
+
+            val secureStore = KmpSecureStateStore(SharedPreferencesSettings(sharedPreferences))
 
             // Mutable token reference shared between ApiAuthRepository and the Auth plugin.
             var currentTokens: BearerTokens? = null
@@ -63,9 +88,13 @@ class MobileWalletDependencies private constructor(
                 json = json,
             )
 
-            val authRepository = ApiAuthRepository(backendApi) { token ->
-                currentTokens = BearerTokens(token, "")
-            }
+            val authRepository = ApiAuthRepository(
+                backendApi = backendApi,
+                secureStateStore = secureStore,
+                onTokenReceived = { token ->
+                    currentTokens = BearerTokens(token, "")
+                }
+            )
             val credentialRepository = ApiCredentialRepository(backendApi)
             val didRepository = ApiDidRepository(backendApi)
             val keyRepository = ApiKeyRepository(backendApi)
@@ -88,6 +117,17 @@ class MobileWalletDependencies private constructor(
                 listKeysUseCase = ListKeysUseCase(keyRepository),
                 signVerifyUseCase = SignVerifyUseCase(keyRepository),
             )
+
+            // Auto-restore session from secure storage
+            GlobalScope.launch {
+                val savedToken = secureStore.get("auth_token")
+                val savedWalletId = secureStore.get("auth_wallet_id")
+                
+                if (savedToken != null && savedWalletId != null) {
+                    currentTokens = BearerTokens(savedToken, "")
+                    stateMachine.bootstrap(WalletId(savedWalletId))
+                }
+            }
 
             return MobileWalletDependencies(
                 stateMachine = stateMachine,
