@@ -2,18 +2,18 @@ package id.walt.mobilewallet.di
 
 import org.koin.core.module.dsl.factoryOf
 
-import id.walt.mobilewallet.domain.AcceptIssuanceUseCase
-import id.walt.mobilewallet.domain.GetCredentialUseCase
-import id.walt.mobilewallet.domain.HandleScannedRequestUseCase
-import id.walt.mobilewallet.domain.ListCredentialsUseCase
-import id.walt.mobilewallet.domain.ListDidsUseCase
-import id.walt.mobilewallet.domain.ListKeysUseCase
+import id.walt.mobilewallet.domain.usecase.AcceptIssuanceUseCase
+import id.walt.mobilewallet.domain.usecase.GetCredentialUseCase
+import id.walt.mobilewallet.domain.usecase.HandleScannedRequestUseCase
+import id.walt.mobilewallet.domain.usecase.ListCredentialsUseCase
+import id.walt.mobilewallet.domain.usecase.ListDidsUseCase
+import id.walt.mobilewallet.domain.usecase.ListKeysUseCase
 import id.walt.mobilewallet.domain.LoginUseCase
-import id.walt.mobilewallet.domain.ResolveIssuanceUseCase
-import id.walt.mobilewallet.domain.ResolvePresentationUseCase
-import id.walt.mobilewallet.domain.SetDefaultDidUseCase
-import id.walt.mobilewallet.domain.SignVerifyUseCase
-import id.walt.mobilewallet.domain.SubmitPresentationUseCase
+import id.walt.mobilewallet.domain.usecase.ResolveIssuanceUseCase
+import id.walt.mobilewallet.domain.usecase.ResolvePresentationUseCase
+import id.walt.mobilewallet.domain.usecase.SetDefaultDidUseCase
+import id.walt.mobilewallet.domain.usecase.SignVerifyUseCase
+import id.walt.mobilewallet.domain.usecase.SubmitPresentationUseCase
 import org.koin.dsl.module
 
 val domainModule = module {
