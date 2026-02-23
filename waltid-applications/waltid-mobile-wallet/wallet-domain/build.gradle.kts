@@ -10,6 +10,7 @@ kotlin {
             implementation(project(":waltid-applications:waltid-mobile-wallet:wallet-model"))
             implementation(identityLibs.kotlinx.coroutines.core)
             implementation(identityLibs.kotlinx.datetime)
+            implementation(identityLibs.koin.core)
         }
         commonTest.dependencies {
             implementation(kotlin("test"))

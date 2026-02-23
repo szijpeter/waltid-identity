@@ -14,6 +14,7 @@ kotlin {
             implementation(identityLibs.kotlinx.coroutines.core)
             implementation(identityLibs.bundles.waltid.ktor.client)
             implementation(identityLibs.multiplatform.settings)
+            implementation(identityLibs.koin.core)
 
             implementation(project(":waltid-libraries:protocols:waltid-openid4vc"))
             implementation(project(":waltid-libraries:protocols:waltid-openid4vp-wallet"))
