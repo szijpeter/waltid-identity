@@ -85,8 +85,9 @@ class MobileWalletStateMachineTest {
         machine.handleScanInput()
 
         val state = machine.state.value
-        assertIs<WalletRoute.Issuance>(state.route)
-        assertNotNull(state.pendingIssuance)
+        val route = state.route
+        assertIs<WalletRoute.Issuance>(route)
+        assertNotNull(route.pendingIssuance)
     }
 
     @Test
@@ -99,8 +100,9 @@ class MobileWalletStateMachineTest {
         machine.handleScanInput()
 
         val state = machine.state.value
-        assertIs<WalletRoute.Presentation>(state.route)
-        assertNotNull(state.pendingPresentation)
+        val route = state.route
+        assertIs<WalletRoute.Presentation>(route)
+        assertNotNull(route.pendingPresentation)
     }
 
     @Test
@@ -114,7 +116,8 @@ class MobileWalletStateMachineTest {
         )
         machine.handleScanInput()
 
-        val pendingPresentation = assertNotNull(machine.state.value.pendingPresentation)
+        val route = assertIs<WalletRoute.Presentation>(machine.state.value.route)
+        val pendingPresentation = assertNotNull(route.pendingPresentation)
         assertEquals(ProtocolMode.OPENID4VP_1_0, pendingPresentation.request.protocolMode)
     }
 
@@ -129,7 +132,8 @@ class MobileWalletStateMachineTest {
         )
         machine.handleScanInput()
 
-        val pendingPresentation = assertNotNull(machine.state.value.pendingPresentation)
+        val route = assertIs<WalletRoute.Presentation>(machine.state.value.route)
+        val pendingPresentation = assertNotNull(route.pendingPresentation)
         assertEquals(ProtocolMode.OPENID4VP_1_0, pendingPresentation.request.protocolMode)
     }
 
@@ -156,8 +160,9 @@ class MobileWalletStateMachineTest {
         machine.openCredentialDetail(credentialId)
 
         val state = machine.state.value
-        assertIs<WalletRoute.CredentialDetail>(state.route)
-        assertNotNull(state.credentialDetail)
+        val route = state.route
+        assertIs<WalletRoute.CredentialDetail>(route)
+        assertNotNull(route.detail)
     }
 }
 

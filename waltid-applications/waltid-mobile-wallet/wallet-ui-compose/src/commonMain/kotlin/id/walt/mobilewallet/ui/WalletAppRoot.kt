@@ -67,9 +67,9 @@ fun WalletAppRoot(
             }
 
             when (val route = state.route) {
-                WalletRoute.Login -> LoginScreen(
-                    email = state.loginEmail,
-                    password = state.loginPassword,
+                is WalletRoute.Login -> LoginScreen(
+                    email = route.email,
+                    password = route.password,
                     isLoading = state.isLoading,
                     error = state.lastError,
                     onEmailChanged = machine::updateLoginEmail,
@@ -80,29 +80,32 @@ fun WalletAppRoot(
 
                 WalletRoute.Dashboard -> DashboardScreen(
                     state = state,
-                    onScanRequest = { machine.updateScanInput(state.scanInput) },
+                    onScanRequest = { 
+                        machine.updateScanInput("")
+                    },
                     onRefresh = { scope.launch { machine.refreshDashboard() } },
                     onOpenCredential = { credentialId ->
                         scope.launch { machine.openCredentialDetail(credentialId) }
                     },
                 )
 
-                WalletRoute.Scan -> ScanScreen(
-                    state = state,
+                is WalletRoute.Scan -> ScanScreen(
+                    scanInput = route.scanInput,
+                    isLoading = state.isLoading,
                     onInputChanged = machine::updateScanInput,
                     onSubmit = { scope.launch { machine.handleScanInput() } },
                     onCancel = machine::cancelCurrentFlow,
                 )
 
-                WalletRoute.Issuance -> IssuanceScreen(
-                    preview = state.pendingIssuance,
+                is WalletRoute.Issuance -> IssuanceScreen(
+                    preview = route.pendingIssuance,
                     dids = state.dids,
                     onAccept = { didId -> scope.launch { machine.acceptIssuance(didId) } },
                     onCancel = machine::cancelCurrentFlow,
                 )
 
-                WalletRoute.Presentation -> PresentationScreen(
-                    matchedCredentials = state.pendingPresentation?.matchedCredentials.orEmpty(),
+                is WalletRoute.Presentation -> PresentationScreen(
+                    matchedCredentials = route.pendingPresentation?.matchedCredentials.orEmpty(),
                     onSubmit = { selected ->
                         scope.launch { machine.submitPresentation(selected, disclosures = emptyMap()) }
                     },
@@ -110,7 +113,6 @@ fun WalletAppRoot(
                 )
 
                 is WalletRoute.CredentialDetail -> CredentialDetailScreen(
-                    state = state,
                     route = route,
                     onBack = { scope.launch { machine.refreshDashboard() } },
                 )

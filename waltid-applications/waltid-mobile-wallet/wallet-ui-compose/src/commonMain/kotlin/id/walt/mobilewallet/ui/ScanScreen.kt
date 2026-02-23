@@ -15,7 +15,8 @@ import androidx.compose.ui.unit.dp
 
 @Composable
 fun ScanScreen(
-    state: WalletUiState,
+    scanInput: String,
+    isLoading: Boolean,
     onInputChanged: (String) -> Unit,
     onSubmit: () -> Unit,
     onCancel: () -> Unit,
@@ -23,7 +24,7 @@ fun ScanScreen(
     Text(text = "Request intake", style = MaterialTheme.typography.titleMedium)
     Spacer(modifier = Modifier.height(8.dp))
     OutlinedTextField(
-        value = state.scanInput,
+        value = scanInput,
         onValueChange = onInputChanged,
         label = { Text("OpenID request URL") },
         modifier = Modifier.fillMaxWidth(),
@@ -33,12 +34,12 @@ fun ScanScreen(
     Row(modifier = Modifier.fillMaxWidth()) {
         Button(
             onClick = onSubmit,
-            enabled = !state.isLoading && state.scanInput.isNotBlank(),
+            enabled = !isLoading && scanInput.isNotBlank(),
         ) {
             Text("Process request")
         }
         Spacer(modifier = Modifier.weight(1f))
-        TextButton(onClick = onCancel, enabled = !state.isLoading) {
+        TextButton(onClick = onCancel, enabled = !isLoading) {
             Text("Cancel")
         }
     }

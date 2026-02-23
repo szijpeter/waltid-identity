@@ -14,13 +14,12 @@ import androidx.compose.ui.unit.dp
 
 @Composable
 fun CredentialDetailScreen(
-    state: WalletUiState,
     route: WalletRoute.CredentialDetail,
     onBack: () -> Unit,
 ) {
     Text(text = "Credential detail", style = MaterialTheme.typography.titleMedium)
     Spacer(modifier = Modifier.height(8.dp))
-    val detail = state.credentialDetail
+    val detail = route.detail
     if (detail == null || detail.summary.id != route.credentialId) {
         CircularProgressIndicator()
         Spacer(modifier = Modifier.height(8.dp))

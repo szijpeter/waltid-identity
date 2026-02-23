@@ -48,26 +48,37 @@ class MobileWalletStateMachine(
     val state: StateFlow<WalletUiState> = _state
 
     fun updateLoginEmail(value: String) {
-        _state.update { it.copy(loginEmail = value) }
+        _state.update {
+            if (it.route is WalletRoute.Login) {
+                it.copy(route = it.route.copy(email = value))
+            } else {
+                it
+            }
+        }
     }
 
     fun updateLoginPassword(value: String) {
-        _state.update { it.copy(loginPassword = value) }
+        _state.update {
+            if (it.route is WalletRoute.Login) {
+                it.copy(route = it.route.copy(password = value))
+            } else {
+                it
+            }
+        }
     }
 
     suspend fun submitLogin() {
         if (state.value.isLoading) return
         _state.update { it.copy(isLoading = true, lastError = null) }
+        val route = state.value.route as? WalletRoute.Login ?: return
         val credentials = LoginCredentials(
-            email = state.value.loginEmail,
-            password = state.value.loginPassword,
+            email = route.email,
+            password = route.password,
         )
         loginUseCase(credentials)
             .onSuccess { session ->
                 _state.update {
                     it.copy(
-                        loginEmail = "",
-                        loginPassword = "",
                         isLoading = false,
                     )
                 }
@@ -120,7 +131,9 @@ class MobileWalletStateMachine(
     }
 
     fun updateScanInput(value: String) {
-        _state.update { it.copy(scanInput = value, route = WalletRoute.Scan, lastError = null) }
+        _state.update {
+            it.copy(route = WalletRoute.Scan(scanInput = value), lastError = null)
+        }
     }
 
     suspend fun submitIncomingRequest(rawRequest: String) {
@@ -137,9 +150,6 @@ class MobileWalletStateMachine(
         _state.update {
             it.copy(
                 route = WalletRoute.Dashboard,
-                pendingIssuance = null,
-                pendingPresentation = null,
-                scanInput = "",
                 isLoading = false,
                 lastError = null,
             )
@@ -149,7 +159,8 @@ class MobileWalletStateMachine(
     suspend fun handleScanInput() {
         if (state.value.isLoading) return
         val walletId = state.value.walletId ?: return
-        val raw = state.value.scanInput
+        val route = state.value.route as? WalletRoute.Scan ?: return
+        val raw = route.scanInput
         val classification = handleScannedRequestUseCase.classify(raw)
         _state.update { it.copy(isLoading = true, lastError = null) }
 
@@ -170,7 +181,8 @@ class MobileWalletStateMachine(
     suspend fun acceptIssuance(didId: DidId? = null) {
         if (state.value.isLoading) return
         val walletId = state.value.walletId ?: return
-        val request = state.value.scanInput
+        val route = state.value.route as? WalletRoute.Issuance ?: return
+        val request = route.rawRequest
         _state.update { it.copy(isLoading = true, lastError = null) }
         acceptIssuanceUseCase(
             IssuanceRequest(
@@ -182,8 +194,6 @@ class MobileWalletStateMachine(
             _state.update { current ->
                 current.copy(
                     route = WalletRoute.Dashboard,
-                    pendingIssuance = null,
-                    scanInput = "",
                 )
             }
             refreshDashboard()
@@ -193,7 +203,8 @@ class MobileWalletStateMachine(
 
     suspend fun submitPresentation(selectedCredentialIds: List<CredentialId>, disclosures: Map<String, List<String>>) {
         if (state.value.isLoading) return
-        val pending = state.value.pendingPresentation ?: return
+        val route = state.value.route as? WalletRoute.Presentation ?: return
+        val pending = route.pendingPresentation ?: return
         _state.update { it.copy(isLoading = true, lastError = null) }
         submitPresentationUseCase(
             PresentationSelection(
@@ -205,8 +216,6 @@ class MobileWalletStateMachine(
             _state.update { current ->
                 current.copy(
                     route = WalletRoute.Dashboard,
-                    pendingPresentation = null,
-                    scanInput = "",
                 )
             }
         }.onFailure(::consumeError)
@@ -219,8 +228,7 @@ class MobileWalletStateMachine(
         getCredentialUseCase(walletId, credentialId).onSuccess { detail ->
             _state.update { current ->
                 current.copy(
-                    route = WalletRoute.CredentialDetail(credentialId),
-                    credentialDetail = detail,
+                    route = WalletRoute.CredentialDetail(credentialId, detail),
                     isLoading = false,
                 )
             }
@@ -279,9 +287,7 @@ class MobileWalletStateMachine(
             .onSuccess { preview ->
                 _state.update { current ->
                     current.copy(
-                        route = WalletRoute.Issuance,
-                        pendingIssuance = preview,
-                        pendingPresentation = null,
+                        route = WalletRoute.Issuance(pendingIssuance = preview, rawRequest = raw),
                     )
                 }
             }
@@ -305,9 +311,7 @@ class MobileWalletStateMachine(
         ).onSuccess { resolution ->
             _state.update { current ->
                 current.copy(
-                    route = WalletRoute.Presentation,
-                    pendingPresentation = resolution,
-                    pendingIssuance = null,
+                    route = WalletRoute.Presentation(pendingPresentation = resolution, rawRequest = raw),
                 )
             }
         }.onFailure(::consumeError)
