@@ -4,9 +4,8 @@ plugins {
 
 group = "id.walt.mobilewallet.app"
 
-val mobileWalletBaseUrl = ((findProperty("mobileWalletBaseUrl") as String?) ?: System.getenv("MOBILE_WALLET_BASE_URL")).orEmpty()
-val mobileWalletId = ((findProperty("mobileWalletId") as String?) ?: System.getenv("MOBILE_WALLET_ID")).orEmpty()
-val mobileWalletBearerToken = ((findProperty("mobileWalletBearerToken") as String?) ?: System.getenv("MOBILE_WALLET_BEARER_TOKEN")).orEmpty()
+val mobileWalletBaseUrl = ((findProperty("mobileWalletBaseUrl") as String?) ?: System.getenv("MOBILE_WALLET_BASE_URL"))
+    ?.takeIf { it.isNotBlank() } ?: "https://wallet.demo.walt.id"
 
 fun String.toBuildConfigStringLiteral(): String = "\"${replace("\\", "\\\\").replace("\"", "\\\"")}\""
 
@@ -22,8 +21,6 @@ android {
         versionName = "0.1.0"
 
         buildConfigField("String", "WALLET_BASE_URL", mobileWalletBaseUrl.toBuildConfigStringLiteral())
-        buildConfigField("String", "WALLET_ID", mobileWalletId.toBuildConfigStringLiteral())
-        buildConfigField("String", "WALLET_BEARER_TOKEN", mobileWalletBearerToken.toBuildConfigStringLiteral())
     }
 }
 
@@ -45,6 +42,7 @@ dependencies {
     implementation("androidx.compose.material3:material3")
     implementation("io.ktor:ktor-client-okhttp:3.3.3")
     implementation("io.ktor:ktor-client-content-negotiation:3.3.3")
+    implementation("io.ktor:ktor-client-auth:3.3.3")
     implementation("io.ktor:ktor-serialization-kotlinx-json:3.3.3")
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.9.0")
 

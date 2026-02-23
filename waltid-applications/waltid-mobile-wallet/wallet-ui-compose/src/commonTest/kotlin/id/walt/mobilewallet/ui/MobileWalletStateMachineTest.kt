@@ -1,6 +1,7 @@
 package id.walt.mobilewallet.ui
 
 import id.walt.mobilewallet.domain.AcceptIssuanceUseCase
+import id.walt.mobilewallet.domain.AuthRepository
 import id.walt.mobilewallet.domain.CredentialRepository
 import id.walt.mobilewallet.domain.DidRepository
 import id.walt.mobilewallet.domain.ExchangeRepository
@@ -10,6 +11,7 @@ import id.walt.mobilewallet.domain.HandleScannedRequestUseCase
 import id.walt.mobilewallet.domain.ImportDidUseCase
 import id.walt.mobilewallet.domain.ImportKeyUseCase
 import id.walt.mobilewallet.domain.KeyRepository
+import id.walt.mobilewallet.domain.LoginUseCase
 import id.walt.mobilewallet.domain.ListCredentialsUseCase
 import id.walt.mobilewallet.domain.ListDidsUseCase
 import id.walt.mobilewallet.domain.ListKeysUseCase
@@ -47,6 +49,8 @@ import id.walt.mobilewallet.model.PresentationSubmissionResult
 import id.walt.mobilewallet.model.ProtocolMode
 import id.walt.mobilewallet.model.WalletCredential
 import id.walt.mobilewallet.model.WalletId
+import id.walt.mobilewallet.model.AuthSession
+import id.walt.mobilewallet.model.LoginCredentials
 import id.walt.mobilewallet.model.orThrow
 import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
@@ -162,8 +166,10 @@ private fun buildStateMachine(): MobileWalletStateMachine {
     val didRepository = FakeDidRepository()
     val keyRepository = FakeKeyRepository()
     val exchangeRepository = FakeExchangeRepository(credentialRepository.walletCredential)
+    val authRepository = FakeAuthRepository()
 
     return MobileWalletStateMachine(
+        loginUseCase = LoginUseCase(authRepository),
         listCredentialsUseCase = ListCredentialsUseCase(credentialRepository),
         getCredentialUseCase = GetCredentialUseCase(credentialRepository),
         handleScannedRequestUseCase = HandleScannedRequestUseCase(),
@@ -176,6 +182,11 @@ private fun buildStateMachine(): MobileWalletStateMachine {
         listKeysUseCase = ListKeysUseCase(keyRepository),
         signVerifyUseCase = SignVerifyUseCase(keyRepository),
     )
+}
+
+private class FakeAuthRepository : AuthRepository {
+    override suspend fun login(credentials: LoginCredentials): WalletResult<AuthSession> =
+        WalletResult.Success(AuthSession(token = "fake-token", walletId = WalletId.validate("wallet-ui-test").orThrow()))
 }
 
 private class FakeCredentialRepository : CredentialRepository {

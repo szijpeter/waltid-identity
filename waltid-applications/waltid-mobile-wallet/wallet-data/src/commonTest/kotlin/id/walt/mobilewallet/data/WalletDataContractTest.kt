@@ -154,6 +154,13 @@ private class FakeBackendApi : WalletBackendApi {
     var resolvedPresentationRequest: String = ""
     var matchedCredentials: List<ApiWalletCredentialDto> = emptyList()
 
+    override suspend fun login(email: String, password: String): ApiLoginResponseDto =
+        ApiLoginResponseDto(token = "fake-token")
+
+    override suspend fun listWallets(): ApiWalletListingDto =
+        ApiWalletListingDto(wallets = listOf(ApiWalletEntryDto(id = "fake-wallet-id")))
+
+
     override suspend fun listCredentials(walletId: WalletId, showDeleted: Boolean, showPending: Boolean): List<ApiWalletCredentialDto> =
         error("Not used in this test")
 

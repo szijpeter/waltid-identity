@@ -1,9 +1,11 @@
 package id.walt.mobilewallet.domain
 
+import id.walt.mobilewallet.model.AuthSession
 import id.walt.mobilewallet.model.CredentialDetail
 import id.walt.mobilewallet.model.CredentialId
 import id.walt.mobilewallet.model.CredentialSummary
 import id.walt.mobilewallet.model.DeviceIntegritySignal
+import id.walt.mobilewallet.model.LoginCredentials
 import id.walt.mobilewallet.model.DidCreateRequest
 import id.walt.mobilewallet.model.DidDescriptor
 import id.walt.mobilewallet.model.DidId
@@ -61,7 +63,12 @@ interface SecurityRepository {
     suspend fun requireBiometricGate(reason: String): WalletResult<Boolean>
 }
 
+interface AuthRepository {
+    suspend fun login(credentials: LoginCredentials): WalletResult<AuthSession>
+}
+
 data class PresentationResolution(
     val request: PresentationRequest,
     val matchedCredentials: List<WalletCredential>,
 )
+

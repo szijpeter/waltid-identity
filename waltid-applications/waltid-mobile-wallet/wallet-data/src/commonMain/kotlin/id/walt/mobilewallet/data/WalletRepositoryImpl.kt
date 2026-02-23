@@ -310,14 +310,14 @@ class ApiExchangeRepository(
     }
 }
 
-private suspend inline fun <T> safeCall(crossinline block: suspend () -> T): WalletResult<T> {
+internal suspend inline fun <T> safeCall(crossinline block: suspend () -> T): WalletResult<T> {
     return runCatching { block() }.fold(
         onSuccess = { WalletResult.Success(it) },
         onFailure = { WalletResult.Failure(it.toWalletError()) },
     )
 }
 
-private fun Throwable.toWalletError(): WalletError = when (this) {
+internal fun Throwable.toWalletError(): WalletError = when (this) {
     is WalletApiException -> WalletError.Network(message = message, statusCode = statusCode)
     is IllegalArgumentException -> WalletError.Validation(
         issues = listOf(

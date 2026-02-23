@@ -6,6 +6,7 @@ import id.walt.mobilewallet.domain.HandleScannedRequestUseCase
 import id.walt.mobilewallet.domain.ListCredentialsUseCase
 import id.walt.mobilewallet.domain.ListDidsUseCase
 import id.walt.mobilewallet.domain.ListKeysUseCase
+import id.walt.mobilewallet.domain.LoginUseCase
 import id.walt.mobilewallet.domain.ResolveIssuanceUseCase
 import id.walt.mobilewallet.domain.ResolvePresentationUseCase
 import id.walt.mobilewallet.domain.SetDefaultDidUseCase
@@ -20,6 +21,7 @@ import id.walt.mobilewallet.model.CredentialId
 import id.walt.mobilewallet.model.DidId
 import id.walt.mobilewallet.model.IssuanceRequest
 import id.walt.mobilewallet.model.KeyVerifyRequest
+import id.walt.mobilewallet.model.LoginCredentials
 import id.walt.mobilewallet.model.PresentationRequest
 import id.walt.mobilewallet.model.PresentationSelection
 import id.walt.mobilewallet.model.ScannedRequestKind
@@ -29,6 +31,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.update
 
 class MobileWalletStateMachine(
+    private val loginUseCase: LoginUseCase,
     private val listCredentialsUseCase: ListCredentialsUseCase,
     private val getCredentialUseCase: GetCredentialUseCase,
     private val handleScannedRequestUseCase: HandleScannedRequestUseCase,
@@ -44,10 +47,43 @@ class MobileWalletStateMachine(
     private val _state = MutableStateFlow(WalletUiState())
     val state: StateFlow<WalletUiState> = _state
 
+    fun updateLoginEmail(value: String) {
+        _state.update { it.copy(loginEmail = value) }
+    }
+
+    fun updateLoginPassword(value: String) {
+        _state.update { it.copy(loginPassword = value) }
+    }
+
+    suspend fun submitLogin() {
+        if (state.value.isLoading) return
+        _state.update { it.copy(isLoading = true, lastError = null) }
+        val credentials = LoginCredentials(
+            email = state.value.loginEmail,
+            password = state.value.loginPassword,
+        )
+        loginUseCase(credentials)
+            .onSuccess { session ->
+                _state.update {
+                    it.copy(
+                        loginEmail = "",
+                        loginPassword = "",
+                        isLoading = false,
+                    )
+                }
+                bootstrap(session.walletId)
+            }
+            .onFailure { error ->
+                consumeError(error)
+                _state.update { it.copy(isLoading = false) }
+            }
+    }
+
     suspend fun bootstrap(walletId: WalletId) {
         _state.update {
             it.copy(
                 walletId = walletId,
+                route = WalletRoute.Dashboard,
                 isLoading = true,
                 lastError = null,
             )

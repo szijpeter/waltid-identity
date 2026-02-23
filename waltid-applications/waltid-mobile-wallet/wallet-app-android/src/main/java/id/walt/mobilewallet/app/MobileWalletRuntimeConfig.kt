@@ -1,32 +1,24 @@
 package id.walt.mobilewallet.app
 
-import id.walt.mobilewallet.model.WalletId
-import id.walt.mobilewallet.model.orThrow
+import id.walt.mobilewallet.app.BuildConfig
 
+/**
+ * Runtime configuration for the mobile wallet Android host.
+ *
+ * Only the base URL is required at build time. Wallet ID and bearer token
+ * are obtained dynamically after a successful login.
+ */
 data class MobileWalletRuntimeConfig(
     val baseUrl: String,
-    val walletId: WalletId,
-    val bearerToken: String? = null,
 ) {
     companion object {
         fun fromBuildConfig(): MobileWalletRuntimeConfig {
             val baseUrl = BuildConfig.WALLET_BASE_URL.trim()
             require(baseUrl.isNotBlank()) {
-                "Missing wallet backend URL. Configure WALLET_BASE_URL (mobileWalletBaseUrl or MOBILE_WALLET_BASE_URL)."
+                "Missing wallet backend URL. Set 'mobileWalletBaseUrl' in gradle.properties " +
+                    "or MOBILE_WALLET_BASE_URL env var."
             }
-
-            val walletIdRaw = BuildConfig.WALLET_ID.trim()
-            require(walletIdRaw.isNotBlank()) {
-                "Missing wallet id. Configure WALLET_ID (mobileWalletId or MOBILE_WALLET_ID)."
-            }
-            val walletId = WalletId.validate(walletIdRaw, path = "WALLET_ID").orThrow()
-
-            val bearerToken = BuildConfig.WALLET_BEARER_TOKEN.trim().ifBlank { null }
-            return MobileWalletRuntimeConfig(
-                baseUrl = baseUrl,
-                walletId = walletId,
-                bearerToken = bearerToken,
-            )
+            return MobileWalletRuntimeConfig(baseUrl = baseUrl)
         }
     }
 }

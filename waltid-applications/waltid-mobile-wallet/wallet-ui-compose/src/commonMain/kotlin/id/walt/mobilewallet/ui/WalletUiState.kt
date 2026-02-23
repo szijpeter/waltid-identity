@@ -12,6 +12,7 @@ import id.walt.mobilewallet.model.SecuritySettings
 import id.walt.mobilewallet.model.WalletId
 
 sealed interface WalletRoute {
+    data object Login : WalletRoute
     data object Dashboard : WalletRoute
     data object Scan : WalletRoute
     data object Issuance : WalletRoute
@@ -24,8 +25,10 @@ sealed interface WalletRoute {
 
 data class WalletUiState(
     val walletId: WalletId? = null,
-    val route: WalletRoute = WalletRoute.Dashboard,
+    val route: WalletRoute = WalletRoute.Login,
     val isLoading: Boolean = false,
+    val loginEmail: String = "",
+    val loginPassword: String = "",
     val scanInput: String = "",
     val credentials: List<CredentialSummary> = emptyList(),
     val credentialDetail: CredentialDetail? = null,

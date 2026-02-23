@@ -1,5 +1,6 @@
 package id.walt.mobilewallet.app
 
+import id.walt.mobilewallet.data.ApiAuthRepository
 import id.walt.mobilewallet.data.ApiCredentialRepository
 import id.walt.mobilewallet.data.ApiDidRepository
 import id.walt.mobilewallet.data.ApiExchangeRepository
@@ -11,24 +12,23 @@ import id.walt.mobilewallet.domain.HandleScannedRequestUseCase
 import id.walt.mobilewallet.domain.ListCredentialsUseCase
 import id.walt.mobilewallet.domain.ListDidsUseCase
 import id.walt.mobilewallet.domain.ListKeysUseCase
+import id.walt.mobilewallet.domain.LoginUseCase
 import id.walt.mobilewallet.domain.ResolveIssuanceUseCase
 import id.walt.mobilewallet.domain.ResolvePresentationUseCase
 import id.walt.mobilewallet.domain.SetDefaultDidUseCase
 import id.walt.mobilewallet.domain.SignVerifyUseCase
 import id.walt.mobilewallet.domain.SubmitPresentationUseCase
-import id.walt.mobilewallet.model.WalletId
 import id.walt.mobilewallet.ui.MobileWalletStateMachine
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.okhttp.OkHttp
-import io.ktor.client.plugins.DefaultRequest
+import io.ktor.client.plugins.auth.Auth
+import io.ktor.client.plugins.auth.providers.BearerTokens
+import io.ktor.client.plugins.auth.providers.bearer
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
-import io.ktor.client.request.header
-import io.ktor.http.HttpHeaders
 import io.ktor.serialization.kotlinx.json.json
 import kotlinx.serialization.json.Json
 
 class MobileWalletDependencies private constructor(
-    val walletId: WalletId,
     val stateMachine: MobileWalletStateMachine,
     private val httpClient: HttpClient,
 ) {
@@ -43,12 +43,17 @@ class MobileWalletDependencies private constructor(
                 explicitNulls = false
             }
 
+            // Mutable token reference shared between ApiAuthRepository and the Auth plugin.
+            var currentTokens: BearerTokens? = null
+
             val httpClient = HttpClient(OkHttp) {
                 install(ContentNegotiation) {
                     json(json)
                 }
-                install(DefaultRequest) {
-                    config.bearerToken?.let { header(HttpHeaders.Authorization, "Bearer $it") }
+                install(Auth) {
+                    bearer {
+                        loadTokens { currentTokens }
+                    }
                 }
             }
 
@@ -58,12 +63,16 @@ class MobileWalletDependencies private constructor(
                 json = json,
             )
 
+            val authRepository = ApiAuthRepository(backendApi) { token ->
+                currentTokens = BearerTokens(token, "")
+            }
             val credentialRepository = ApiCredentialRepository(backendApi)
             val didRepository = ApiDidRepository(backendApi)
             val keyRepository = ApiKeyRepository(backendApi)
             val exchangeRepository = ApiExchangeRepository(backendApi)
 
             val stateMachine = MobileWalletStateMachine(
+                loginUseCase = LoginUseCase(authRepository),
                 listCredentialsUseCase = ListCredentialsUseCase(credentialRepository),
                 getCredentialUseCase = GetCredentialUseCase(credentialRepository),
                 handleScannedRequestUseCase = HandleScannedRequestUseCase(),
@@ -81,7 +90,6 @@ class MobileWalletDependencies private constructor(
             )
 
             return MobileWalletDependencies(
-                walletId = config.walletId,
                 stateMachine = stateMachine,
                 httpClient = httpClient,
             )

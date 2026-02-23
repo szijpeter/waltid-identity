@@ -67,3 +67,20 @@ data class ApiUsePresentationResponseDto(
     val errorMessage: String? = null,
     val message: String? = null,
 )
+
+@Serializable
+data class ApiLoginResponseDto(
+    val token: String? = null,
+)
+
+@Serializable
+data class ApiWalletListingDto(
+    val wallets: List<ApiWalletEntryDto> = emptyList(),
+)
+
+@Serializable
+data class ApiWalletEntryDto(
+    val id: String,
+    val name: String? = null,
+    val createdOn: String? = null,
+)

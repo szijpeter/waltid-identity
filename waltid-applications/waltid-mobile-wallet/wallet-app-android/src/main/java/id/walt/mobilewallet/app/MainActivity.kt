@@ -37,9 +37,11 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import id.walt.mobilewallet.domain.WalletError
@@ -116,16 +118,11 @@ private fun WalletAppRoot(
     val state by machine.state.collectAsState()
     val scope = rememberCoroutineScope()
 
-    LaunchedEffect(dependencies.walletId) {
-        machine.bootstrap(dependencies.walletId)
-    }
-
-    LaunchedEffect(machine, dependencies.walletId) {
+    LaunchedEffect(machine) {
         incomingRequests.collect { rawRequest ->
-            if (machine.state.value.walletId == null) {
-                machine.bootstrap(dependencies.walletId)
+            if (machine.state.value.walletId != null) {
+                machine.submitIncomingRequest(rawRequest)
             }
-            machine.submitIncomingRequest(rawRequest)
         }
     }
 
@@ -153,6 +150,17 @@ private fun WalletAppRoot(
         }
 
         when (val route = state.route) {
+            WalletRoute.Login -> LoginScreen(
+                email = state.loginEmail,
+                password = state.loginPassword,
+                isLoading = state.isLoading,
+                error = state.lastError,
+                onEmailChanged = machine::updateLoginEmail,
+                onPasswordChanged = machine::updateLoginPassword,
+                onSubmit = { scope.launch { machine.submitLogin() } },
+                onDismissError = machine::dismissError,
+            )
+
             WalletRoute.Dashboard -> DashboardScreen(
                 state = state,
                 onScanRequest = { machine.updateScanInput(state.scanInput) },
@@ -208,6 +216,80 @@ private fun WalletAppRoot(
                 Button(onClick = machine::cancelCurrentFlow) { Text("Back to dashboard") }
             }
         }
+    }
+}
+
+@Composable
+private fun LoginScreen(
+    email: String,
+    password: String,
+    isLoading: Boolean,
+    error: WalletError?,
+    onEmailChanged: (String) -> Unit,
+    onPasswordChanged: (String) -> Unit,
+    onSubmit: () -> Unit,
+    onDismissError: () -> Unit,
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(24.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        Spacer(modifier = Modifier.height(48.dp))
+        Text(
+            text = "walt.id Mobile Wallet",
+            style = MaterialTheme.typography.headlineMedium,
+        )
+        Spacer(modifier = Modifier.height(8.dp))
+        Text(
+            text = "Sign in to continue",
+            style = MaterialTheme.typography.bodyLarge,
+        )
+        Spacer(modifier = Modifier.height(32.dp))
+
+        error?.let { err ->
+            ErrorCard(error = err, onDismiss = onDismissError)
+            Spacer(modifier = Modifier.height(16.dp))
+        }
+
+        OutlinedTextField(
+            value = email,
+            onValueChange = onEmailChanged,
+            label = { Text("Email") },
+            singleLine = true,
+            enabled = !isLoading,
+            modifier = Modifier.fillMaxWidth(),
+        )
+        Spacer(modifier = Modifier.height(12.dp))
+
+        OutlinedTextField(
+            value = password,
+            onValueChange = onPasswordChanged,
+            label = { Text("Password") },
+            singleLine = true,
+            enabled = !isLoading,
+            visualTransformation = PasswordVisualTransformation(),
+            modifier = Modifier.fillMaxWidth(),
+        )
+        Spacer(modifier = Modifier.height(24.dp))
+
+        Button(
+            onClick = onSubmit,
+            enabled = !isLoading && email.isNotBlank() && password.isNotBlank(),
+            modifier = Modifier.fillMaxWidth(),
+        ) {
+            if (isLoading) {
+                CircularProgressIndicator(
+                    modifier = Modifier.height(20.dp).width(20.dp),
+                    strokeWidth = 2.dp,
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+            }
+            Text("Sign in")
+        }
+
+        // Registration deferred — see AuthModels.kt note.
     }
 }
 

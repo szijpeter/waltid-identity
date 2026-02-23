@@ -27,6 +27,9 @@ import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 
 interface WalletBackendApi {
+    suspend fun login(email: String, password: String): ApiLoginResponseDto
+    suspend fun listWallets(): ApiWalletListingDto
+
     suspend fun listCredentials(walletId: WalletId, showDeleted: Boolean = false, showPending: Boolean = false): List<ApiWalletCredentialDto>
     suspend fun getCredential(walletId: WalletId, credentialId: String): ApiWalletCredentialDto
 
@@ -72,6 +75,24 @@ class KtorWalletBackendApi(
 ) : WalletBackendApi {
 
     private val normalizedBaseUrl = baseUrl.trimEnd('/')
+
+    override suspend fun login(email: String, password: String): ApiLoginResponseDto {
+        val body = buildJsonObject {
+            put("email", email)
+            put("password", password)
+            put("type", "email")
+        }
+        val response = httpClient.post("$normalizedBaseUrl/wallet-api/auth/login") {
+            contentType(ContentType.Application.Json)
+            setBody(body)
+        }
+        return response.parseOrThrow()
+    }
+
+    override suspend fun listWallets(): ApiWalletListingDto {
+        val response = httpClient.get("$normalizedBaseUrl/wallet-api/wallet/accounts/wallets")
+        return response.parseOrThrow()
+    }
 
     override suspend fun listCredentials(walletId: WalletId, showDeleted: Boolean, showPending: Boolean): List<ApiWalletCredentialDto> {
         val response = httpClient.get(walletPath(walletId, "credentials")) {
