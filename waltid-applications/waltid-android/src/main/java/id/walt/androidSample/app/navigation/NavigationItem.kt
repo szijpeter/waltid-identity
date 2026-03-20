@@ -2,6 +2,7 @@ package id.walt.androidSample.app.navigation
 
 sealed class NavigationItem(val route: String) {
     data object Main : NavigationItem("Main")
+    data object WalletDashboard : NavigationItem("WalletDashboard")
     data object Result : NavigationItem("Result")
     data object WalkthroughStepOne : NavigationItem("WalkthroughStepOne")
     data object WalkthroughStepTwo : NavigationItem("WalkthroughStepTwo")

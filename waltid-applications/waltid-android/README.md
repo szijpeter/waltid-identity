@@ -29,6 +29,10 @@
 
 4. **Verification**: Verify signed text using generated keys and DIDs.
 
+5. **Wallet Dashboard (migration baseline)**: Tabbed wallet shell with deep-link exchange intake and walt-libraries-first DID/key operations.
+
+See `/Users/szipe/lvc/dev/projects/ident-i-eeze/waltid-applications/waltid-android/docs/ULTIMATE_WALLET_MIGRATION.md` for the migration roadmap.
+
 ## Screenshots
 
 ![Key Generation](screenshots/key_generation_screen.png) ![Retrieve Public Key](screenshots/retrieve_public_key_screen.png) ![Biometrics Prompt](screenshots/biometrics_prompt.png) ![DID Creation](screenshots/did_creation_screen.png) ![Signing Text](screenshots/signing_text_screen.png) ![Verification](screenshots/verification_screen.png)

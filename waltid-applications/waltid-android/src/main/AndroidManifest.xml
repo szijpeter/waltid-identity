@@ -29,6 +29,17 @@
 
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
+
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW"/>
+                <category android:name="android.intent.category.DEFAULT"/>
+                <category android:name="android.intent.category.BROWSABLE"/>
+                <data android:scheme="openid-credential-offer" />
+                <data android:scheme="openid-initiate-issuance" />
+                <data android:scheme="openid4vci" />
+                <data android:scheme="openid4vp" />
+                <data android:scheme="openid-vp" />
+            </intent-filter>
         </activity>
     </application>
 

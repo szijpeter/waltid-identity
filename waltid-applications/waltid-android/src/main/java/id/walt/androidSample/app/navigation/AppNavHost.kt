@@ -1,15 +1,13 @@
 package id.walt.androidSample.app.navigation
 
-import android.widget.Toast
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.navOptions
-import id.walt.androidSample.R
+import id.walt.androidSample.app.features.wallet.WalletDashboardScreen
 import id.walt.androidSample.app.features.walkthrough.StepFiveScreen
 import id.walt.androidSample.app.features.walkthrough.StepFourScreen
 import id.walt.androidSample.app.features.walkthrough.StepOneScreen
@@ -23,10 +21,10 @@ import id.walt.androidSample.utils.ObserveAsEvents
 fun AppNavHost(
     modifier: Modifier = Modifier,
     navController: NavHostController,
-    startDestination: String = NavigationItem.WalkthroughStepOne.route,
+    initialDeepLink: String? = null,
+    startDestination: String = NavigationItem.WalletDashboard.route,
 ) {
 
-    val ctx = LocalContext.current
     val walkthroughViewModel = viewModel<WalkthroughViewModel.Default>()
 
     ObserveAsEvents(flow = walkthroughViewModel.events) { event ->
@@ -52,6 +50,12 @@ fun AppNavHost(
         navController = navController,
         startDestination = startDestination
     ) {
+        composable(NavigationItem.WalletDashboard.route) {
+            WalletDashboardScreen(
+                initialDeepLink = initialDeepLink,
+                onOpenWalkthrough = { navController.navigate(NavigationItem.WalkthroughStepOne.route) },
+            )
+        }
         composable(NavigationItem.WalkthroughStepOne.route) {
             StepOneScreen(viewModel = walkthroughViewModel, navController = navController)
         }
