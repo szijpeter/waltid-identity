@@ -1,8 +1,8 @@
 # OID4VP PR Notes
 
 ## Current Branch Heads
-- `feat/wallet-openid4vp-v1` at `877ca3282`
-- `feat/transaction-data-support` at `4feec7737`
+- `feat/wallet-openid4vp-v1` at `426feec27`
+- `feat/transaction-data-support` at `53636c926`
 
 ## PR 1 Draft Notes
 
@@ -14,7 +14,7 @@
 - Keep draft OpenID4VP behavior intact.
 - Update wallet UI only where needed for v1 request handling.
 - Add tests for the new v1 OSS wallet path.
-- Current branch also includes a small cleanup commit to simplify the new wallet OpenID4VP request-handling path.
+- Current branch is collapsed to a single commit for local review convenience.
 
 ### Exclusions
 - No transaction-data support in this PR.
@@ -31,7 +31,6 @@
 - Add minimal verifier demo flow and wallet authorization UX.
 - Support both `dc+sd-jwt` and `mso_mdoc` transaction-data presentation paths.
 - Align verifier validation with the policy-based direction described in issue `#1583`.
-- Attach demo recording outside git.
 - Current branch is restacked as a single task-2 commit on top of the final task-1 head.
 
 ### Exclusions
@@ -43,5 +42,5 @@
 - Call out any temporary overlap between PR 1 and PR 2 if PR 2 is opened before PR 1 merges.
 
 ## Remaining Before Publication
-- Demo recording is available outside git from the automated browser run.
+- Final manual demo recording is still pending and should stay outside git.
 - Manual smoke validation is optional, not blocking, after the completed automated E2E runs.

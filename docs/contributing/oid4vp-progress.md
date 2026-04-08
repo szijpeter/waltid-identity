@@ -11,8 +11,9 @@
 - [x] Add verifier-side transaction-data validation
 - [x] Add verifier demo UI flow
 - [x] Add wallet transaction authorization UX
-- [x] Record demo outside git
+- [ ] Record demo outside git
 - [x] Prepare feature branches via cherry-picking
+- [x] Collapse feature branches to one commit each
 - [ ] Push branches or open PRs after confirmation
 
 ## Branch Plan
@@ -21,23 +22,19 @@
 - Feature branch 2: `feat/transaction-data-support`
 
 ## Branch Heads
-- `feat/wallet-openid4vp-v1` at `877ca3282`
-- `feat/transaction-data-support` at `4feec7737`
+- `feat/wallet-openid4vp-v1` at `426feec27`
+- `feat/transaction-data-support` at `53636c926`
 
 ## Feature Branch Status
 - `feat/wallet-openid4vp-v1`
   - ready for push/PR preparation from a code and branch-hygiene perspective
-  - latest branch-only commits:
-    - `877ca3282` `refactor: avoid redundant authorization request resolution`
-    - `fe1af38cc` `refactor: simplify wallet OpenID4VP request handling`
-    - `fc314d8aa` `docs: update wallet API protocol support notes`
-    - `6e52a04f5` `test: cover OpenID4VP request resolution paths`
-    - `e6db492f7` `feat: add OpenID4VP wallet request handling`
+  - collapsed to a single branch-only commit:
+    - `426feec27` `feat: add OpenID4VP wallet request handling`
 - `feat/transaction-data-support`
   - ready for push/PR preparation from a code and branch-hygiene perspective
   - restacked onto the current `feat/wallet-openid4vp-v1` head as a single task-2 commit
   - latest branch-only commit on top of task 1:
-    - `4feec7737` `feat: add transaction data support`
+    - `53636c926` `feat: add transaction data support`
 
 ## Commit Separation
 - Docs commits stay on docs branch.
@@ -72,4 +69,5 @@
 
 ## Remaining Before Push
 - Prepare final PR descriptions from the notes file.
+- Record the final manual demo outside git.
 - Optional final manual browser smoke run before pushing.
