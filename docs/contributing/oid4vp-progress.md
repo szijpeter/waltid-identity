@@ -11,7 +11,7 @@
 - [x] Add verifier-side transaction-data validation
 - [x] Add verifier demo UI flow
 - [x] Add wallet transaction authorization UX
-- [ ] Record demo outside git
+- [x] Record demo outside git
 - [x] Prepare feature branches via cherry-picking
 - [ ] Push branches or open PRs after confirmation
 
@@ -21,27 +21,23 @@
 - Feature branch 2: `feat/transaction-data-support`
 
 ## Branch Heads
-- `feat/wallet-openid4vp-v1` at `fe1af38cc`
-- `feat/transaction-data-support` at `4e1b3e330`
+- `feat/wallet-openid4vp-v1` at `877ca3282`
+- `feat/transaction-data-support` at `4feec7737`
 
 ## Feature Branch Status
 - `feat/wallet-openid4vp-v1`
   - ready for push/PR preparation from a code and branch-hygiene perspective
   - latest branch-only commits:
+    - `877ca3282` `refactor: avoid redundant authorization request resolution`
     - `fe1af38cc` `refactor: simplify wallet OpenID4VP request handling`
     - `fc314d8aa` `docs: update wallet API protocol support notes`
     - `6e52a04f5` `test: cover OpenID4VP request resolution paths`
     - `e6db492f7` `feat: add OpenID4VP wallet request handling`
 - `feat/transaction-data-support`
   - ready for push/PR preparation from a code and branch-hygiene perspective
-  - latest branch-only commits on top of task 1:
-    - `4e1b3e330` `refactor: simplify transaction data hash validation`
-    - `94c7401cf` `refactor: simplify wallet OpenID4VP request handling`
-    - `8af30ac50` `fix: allow SD-JWT presentations without transaction data`
-    - `dc312d3d8` `fix: validate OpenID4VP transaction data requirements`
-    - `a242614df` `docs: update wallet API protocol support notes`
-    - `3b0611eed` `test: cover OpenID4VP request resolution paths`
-    - `677a72d9f` `feat: add OpenID4VP transaction data support`
+  - restacked onto the current `feat/wallet-openid4vp-v1` head as a single task-2 commit
+  - latest branch-only commit on top of task 1:
+    - `4feec7737` `feat: add transaction data support`
 
 ## Commit Separation
 - Docs commits stay on docs branch.
@@ -62,10 +58,18 @@
 - Task 1 focused validation:
   - `./gradlew --no-build-cache :waltid-services:waltid-wallet-api:test --tests 'id.walt.webwallet.service.exchange.OpenId4VpPresentationServiceTest'`
 - Task 2 focused validation:
-  - `./gradlew --no-build-cache :waltid-libraries:protocols:waltid-openid4vp:jvmTest --tests 'id.walt.verifier.openid.TransactionDataUtilsTest' :waltid-libraries:credentials:waltid-digital-credentials:jvmTest --tests 'id.walt.credentials.PresentationTest.testDcSdJwtPresentationDeserializesWithoutTransactionDataFields' :waltid-services:waltid-wallet-api:test --tests 'id.walt.webwallet.service.exchange.OpenId4VpPresentationServiceTest'`
+  - `./gradlew --no-build-cache :waltid-libraries:protocols:waltid-openid4vp:jvmTest --tests 'id.walt.verifier.openid.TransactionDataUtilsTest' :waltid-libraries:credentials:waltid-verification-policies2-vp:jvmTest --tests 'id.walt.policies2.vp.policies.TransactionDataHashCheckSdJwtVPPolicyTest' --tests 'id.walt.policies2.vp.policies.TransactionDataMdocVpPolicyTest' :waltid-services:waltid-verifier-api2:test --tests 'id.walt.verifier2.sdjwt.IETFSdJwtVcWithDisclosureVerifier2IntegrationTest' --tests 'id.walt.verifier2.mdocs.PidBirthDateIssuerSignedIntegrityReproTest'`
+  - `./gradlew --no-build-cache :waltid-services:waltid-issuer-api:compileKotlin :waltid-services:waltid-wallet-api:test --tests 'id.walt.webwallet.service.exchange.OpenId4VpPresentationServiceTest'`
+- Production Docker validation:
+  - `docker build -t waltid-web-portal-local -f waltid-applications/waltid-web-portal/Dockerfile .`
+  - `docker build -t waltid-demo-wallet-local -f waltid-applications/waltid-web-wallet/apps/waltid-demo-wallet/Dockerfile .`
+  - `docker build -t waltid-dev-wallet-local -f waltid-applications/waltid-web-wallet/apps/waltid-dev-wallet/Dockerfile .`
+- Automated end-to-end validation:
+  - Playwright transaction flow completed successfully for `dc+sd-jwt`
+  - Playwright transaction flow completed successfully for `mso_mdoc`
+  - latest mdoc artifact set: `/tmp/waltid-playwright/artifacts/2026-04-08T12-30-38.986Z`
+  - latest SD-JWT artifact set: `/tmp/waltid-playwright/artifacts/2026-04-08T12-30-52.961Z`
 
 ## Remaining Before Push
-- Run one manual end-to-end smoke flow for task 1 against wallet-api + wallet UI.
-- Run one manual end-to-end smoke flow for task 2 against verifier2 + wallet demo + portal.
-- Record the transaction-data demo outside git.
 - Prepare final PR descriptions from the notes file.
+- Optional final manual browser smoke run before pushing.
