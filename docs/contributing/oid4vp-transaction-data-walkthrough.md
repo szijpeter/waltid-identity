@@ -7,7 +7,7 @@
 - Base branch: `feat/wallet-openid4vp-v1`
 
 ## Current stacked shape
-This branch is currently restacked on top of task 1 at `117d4a233`.
+This branch is currently restacked on top of task 1 at `7167872cc`.
 
 Current task-2-only commits on top of task 1:
 - `f3dcf6221` `feat: add transaction data support`
@@ -298,6 +298,172 @@ It also matches the direction in [issue comment 4071924774](https://github.com/w
 - looked up again during presentation
 - verified by `VerificationPolicy`
 - format-specific for SD-JWT and mdoc
+
+## Request and Data Flows
+
+The main flows in this branch are verifier request creation, shared transaction-data validation, wallet display and submission, and verifier-side policy validation.
+
+### 1. Verifier request creation flow
+The transaction demo starts from the verifier portal page:
+- `waltid-applications/waltid-web-portal/pages/verify/transaction.tsx`
+
+That page builds a verifier2 session request containing:
+- `dcql_query`
+- `transaction_data`
+- the chosen format, either:
+  - `dc+sd-jwt`
+  - `mso_mdoc`
+
+That request is sent to verifier2, which creates a verification session and stores the resulting authorization request.
+
+Verifier-side request/session creation is wired through:
+- `waltid-libraries/protocols/waltid-openid4vp-verifier/src/jvmMain/kotlin/id/walt/verifier2/handlers/sessioncreation/VerificationSessionCreator.kt`
+- `waltid-libraries/protocols/waltid-openid4vp-verifier/src/commonMain/kotlin/id/walt/verifier2/data/Verification2Session.kt`
+
+This is the first half of the issue-guidance architecture:
+- the verifier must save the original transaction data with the session so it can look it up again during presentation verification
+
+Relevant references:
+- OpenID4VP 1.0:
+  - [https://openid.net/specs/openid-4-verifiable-presentations-1_0.html](https://openid.net/specs/openid-4-verifiable-presentations-1_0.html)
+- repo direction:
+  - [Issue #1583](https://github.com/walt-id/waltid-identity/issues/1583)
+  - [Issue comment 4071924774](https://github.com/walt-id/waltid-identity/issues/1583#issuecomment-4071924774)
+
+### 2. Shared transaction-data validation flow
+Request-side and response-side transaction-data rules are centralized in:
+- `waltid-libraries/protocols/waltid-openid4vp/src/commonMain/kotlin/id/walt/verifier/openid/TransactionDataUtils.kt`
+- `waltid-libraries/protocols/waltid-openid4vp/src/commonMain/kotlin/id/walt/verifier/openid/models/authorization/TransactionDataItem.kt`
+
+This layer is responsible for:
+- decoding `transaction_data`
+- validating supported transaction-data types
+- checking `credential_ids`
+- enforcing `require_cryptographic_holder_binding == true` where required
+- validating response-side transaction-data hash algorithm semantics
+
+This shared layer is important because wallet, verifier, and demo flows all need the same interpretation rules.
+
+### 3. Wallet resolution and display flow
+The wallet uses the OpenID4VP 1.0 request-resolution path introduced by PR 1:
+- `waltid-applications/waltid-web-wallet/libs/composables/presentation.ts`
+- `waltid-services/waltid-wallet-api/src/main/kotlin/id/walt/webwallet/service/exchange/OpenId4VpPresentationService.kt`
+- `waltid-services/waltid-wallet-api/src/main/kotlin/id/walt/webwallet/service/SSIKit2WalletService.kt`
+
+For transaction data specifically, the wallet UI now:
+1. resolves the presentation request
+2. decodes the request-side `transaction_data`
+3. shows the transaction details before consent
+
+That holder-facing display path lives in:
+- `waltid-applications/waltid-web-wallet/libs/composables/presentation.ts`
+- `waltid-applications/waltid-web-wallet/apps/waltid-demo-wallet/src/pages/wallet/[wallet]/exchange/presentation.vue`
+- `waltid-applications/waltid-web-wallet/apps/waltid-dev-wallet/src/pages/wallet/[wallet]/exchange/presentation.vue`
+
+This is the consent-critical part of the feature:
+- the holder must see what they are authorizing, not just which credential they are sharing
+
+### 4. Format gating and matching flow
+Credential matching still happens through the PR 1 OpenID4VP wallet path:
+- `waltid-services/waltid-wallet-api/src/main/kotlin/id/walt/webwallet/service/exchange/OpenId4VpPresentationService.kt`
+
+The relevant transaction-data rule here is:
+- only formats with a concrete, supported transaction-binding path should be accepted
+
+Supported transaction-data formats in this branch:
+- `dc+sd-jwt`
+- `mso_mdoc`
+
+Formats intentionally not supported:
+- `jwt_vc_json`
+- `ldp_vc`
+- `ac_vp`
+
+Why:
+- the spec and the issue guidance provide a clear transaction-binding story for SD-JWT and mdoc
+- the repo does not yet have an equivalent, standards-grounded transaction-binding implementation for the other formats
+
+### 5. SD-JWT transaction-binding flow
+For `dc+sd-jwt`, transaction authorization is implemented as a Key Binding JWT hash-binding flow.
+
+Wallet-side generation lives in:
+- `waltid-libraries/protocols/waltid-openid4vp-wallet/src/commonMain/kotlin/id/waltid/openid4vp/wallet/WalletPresentFunctionality2.kt`
+- `waltid-libraries/protocols/waltid-openid4vp-wallet/src/commonMain/kotlin/id/waltid/openid4vp/wallet/presentation/SdJwtVcPresenter.kt`
+
+The wallet:
+1. takes the originally requested `transaction_data`
+2. computes hashes over the encoded transaction-data values
+3. writes those hashes into the Key Binding JWT as:
+   - `transaction_data_hashes`
+   - `transaction_data_hashes_alg`
+
+Verifier-side validation is then done through the SD-JWT-specific VP policy:
+- `waltid-libraries/credentials/waltid-verification-policies2-vp/src/commonMain/kotlin/id/walt/policies2/vp/policies/dc_sd_jwt/TransactionDataHashCheckSdJwtVPPolicy.kt`
+
+Relevant standard reference:
+- SD-JWT VC transaction-data binding:
+  - [https://openid.net/specs/openid-4-verifiable-presentations-1_0.html#appendix-B.3.3](https://openid.net/specs/openid-4-verifiable-presentations-1_0.html#appendix-B.3.3)
+
+### 6. mdoc transaction-binding flow
+For `mso_mdoc`, the binding path is format-specific and does not reuse the SD-JWT hash mechanism.
+
+Wallet-side handling lives in:
+- `waltid-libraries/protocols/waltid-openid4vp-wallet/src/commonMain/kotlin/id/waltid/openid4vp/wallet/presentation/MdocPresenter.kt`
+
+The wallet:
+1. checks that the mdoc is authorized for transaction-data use
+2. embeds transaction data in the mdoc `DeviceSigned` path
+3. only allows that usage when the credential’s key authorizations permit it
+
+Verifier-side validation is done through:
+- `waltid-libraries/credentials/waltid-verification-policies2-vp/src/commonMain/kotlin/id/walt/policies2/vp/policies/mso_mdoc/TransactionDataMdocVpPolicy.kt`
+
+Issuer-side support was also needed so a real demoable mdoc could exist:
+- `waltid-services/waltid-issuer-api/src/main/kotlin/id/walt/issuer/issuance/CIProvider.kt`
+
+That issuer change is what makes the mdoc E2E demo possible instead of only “supported in code.”
+
+Relevant references:
+- issue-guidance direction for mdoc:
+  - [https://github.com/walt-id/waltid-identity/issues/1583#issuecomment-4071924774](https://github.com/walt-id/waltid-identity/issues/1583#issuecomment-4071924774)
+- OpenID4VP 1.0 mdoc transaction model:
+  - [https://openid.net/specs/openid-4-verifiable-presentations-1_0.html#appendix-B.2.1](https://openid.net/specs/openid-4-verifiable-presentations-1_0.html#appendix-B.2.1)
+
+### 7. Verifier-side lookup and policy execution flow
+The verifier-side runtime now follows the architecture described in the issue comment:
+- save the requested transaction data with the session
+- look it up again during presentation verification
+- execute format-specific verification through a `VerificationPolicy`
+
+That runtime path flows through:
+- `waltid-libraries/protocols/waltid-openid4vp-verifier/src/commonMain/kotlin/id/walt/verifier2/verification2/PresentationVerificationEngine.kt`
+- `waltid-libraries/credentials/waltid-verification-policies2-vp/src/commonMain/kotlin/id/walt/policies2/vp/policies/VPVerificationContext.kt`
+- `waltid-libraries/credentials/waltid-verification-policies2-vp/src/commonMain/kotlin/id/walt/policies2/vp/policies/VPVerificationPolicyManager.kt`
+
+The important design choice here is:
+- live verifier behavior is policy-based and format-specific
+- older public validator entry points were preserved as compatibility shims so the branch does not break previously available verifier-library APIs
+
+### 8. Demo and E2E flow
+This branch supports two end-to-end demo flows:
+- SD-JWT transaction authorization
+- mdoc transaction authorization
+
+Verifier demo surface:
+- `waltid-applications/waltid-web-portal/pages/verify/transaction.tsx`
+
+Wallet demo surfaces:
+- `waltid-applications/waltid-web-wallet/apps/waltid-demo-wallet/src/pages/wallet/[wallet]/exchange/presentation.vue`
+- `waltid-applications/waltid-web-wallet/apps/waltid-dev-wallet/src/pages/wallet/[wallet]/exchange/presentation.vue`
+
+The full end-to-end behavior is:
+1. create a verifier2 transaction session from the portal
+2. open the wallet presentation request
+3. render transaction details to the holder
+4. present the selected credential with the format-specific transaction binding
+5. verifier looks up the original transaction data and validates the presentation through the corresponding VP policy
+
+That is the complete feature behavior the task asked for.
 
 ## What Is Deliberately Out of Scope
 - transaction-data support for formats that do not have a clear standards-backed binding path in this repo
