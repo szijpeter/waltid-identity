@@ -2,7 +2,7 @@
 
 ## Branch and PR
 - Branch: `feat/wallet-openid4vp-v1`
-- Current head: `117d4a233`
+- Current head: `7167872cc`
 - Fork PR: [https://github.com/szijpeter/waltid-identity/pull/3](https://github.com/szijpeter/waltid-identity/pull/3)
 
 ## Task and Intent
@@ -248,6 +248,134 @@ This branch does what the task asked for:
 It also matches the repo’s direction:
 - verifier2 already used the v1 libraries
 - this branch brings the OSS wallet service up to the same protocol family rather than inventing a parallel custom implementation
+
+## Request and Data Flows
+
+The main flows in this branch are request resolution, credential matching, and presentation submission.
+
+### 1. Request resolution flow
+The wallet starts from an incoming OpenID4VP request URL, usually via the shared wallet UI composable:
+- `waltid-applications/waltid-web-wallet/libs/composables/presentation.ts`
+
+That request is sent to wallet-api, which routes it through:
+- `waltid-services/waltid-wallet-api/src/main/kotlin/id/walt/webwallet/service/SSIKit2WalletService.kt`
+- `waltid-services/waltid-wallet-api/src/main/kotlin/id/walt/webwallet/service/exchange/OpenId4VpPresentationService.kt`
+
+The actual protocol parsing and request retrieval live in:
+- `waltid-libraries/protocols/waltid-openid4vp-wallet/src/commonMain/kotlin/id/waltid/openid4vp/wallet/AuthorizationRequestResolver.kt`
+
+That resolver handles three request shapes:
+- direct authorization-request query parameters
+- inline `request` Request Objects
+- `request_uri`, including `request_uri_method=post`
+
+Relevant OpenID4VP 1.0 references:
+- request parameters and authorization-request structure:
+  - [https://openid.net/specs/openid-4-verifiable-presentations-1_0.html#section-5](https://openid.net/specs/openid-4-verifiable-presentations-1_0.html#section-5)
+- Request Objects and `request_uri`:
+  - [https://openid.net/specs/openid-4-verifiable-presentations-1_0.html#section-5.10.1](https://openid.net/specs/openid-4-verifiable-presentations-1_0.html#section-5.10.1)
+- `request_uri_method=post` retrieval requirements:
+  - [https://openid.net/specs/openid-4-verifiable-presentations-1_0.html#name-request-uri-method-post](https://openid.net/specs/openid-4-verifiable-presentations-1_0.html#name-request-uri-method-post)
+
+Important behavior:
+- if the request uses a signed Request Object, the branch now preserves the original `request` JWT instead of flattening it into plain query parameters
+- that matters because signature and client-id-prefix validation only make sense if the original Request Object survives the flow
+
+### 2. Authorization-request parameter encoding and decoding
+A subtle but important flow in this branch is how authorization-request parameters move between URL form and typed model form.
+
+Parsing happens in:
+- `waltid-libraries/protocols/waltid-openid4vp-wallet/src/commonMain/kotlin/id/waltid/openid4vp/wallet/AuthorizationRequestParameterCodec.kt`
+- used by `AuthorizationRequestResolver.kt`
+
+Encoding back into the normalized wallet URL happens in:
+- `waltid-services/waltid-wallet-api/src/main/kotlin/id/walt/webwallet/service/exchange/OpenId4VpPresentationService.kt`
+
+The convention is:
+- plain scalar query parameters stay plain strings
+- only explicitly JSON-encoded values are parsed as JSON
+
+That means fields like:
+- `client_id`
+- `state`
+- `nonce`
+- `response_uri`
+
+stay protocol strings even if they look like JSON scalars such as `true` or `12345`.
+
+Structured values like:
+- `dcql_query={...}`
+- `client_metadata={...}`
+
+still round-trip as JSON.
+
+This was an important review-driven hardening step because blindly JSON-parsing every parameter can accidentally re-type protocol strings into booleans or numbers.
+
+### 3. Frontend interpretation flow
+After wallet-api resolves the request, the wallet UI still needs to inspect it to decide whether it is handling:
+- a legacy draft `presentation_definition` flow, or
+- an OpenID4VP 1.0 `dcql_query` flow
+
+That logic lives in:
+- `waltid-applications/waltid-web-wallet/libs/composables/presentation.ts`
+
+Because the normalized request may now preserve a signed `request` JWT, the frontend extracts parameters from either:
+- direct query parameters, or
+- the JWT payload inside `request`
+
+That keeps the UI working for:
+- unsigned direct-parameter requests
+- `request_uri` requests that resolve to JSON
+- signed Request Objects preserved as `request=<jwt>`
+
+### 4. Credential matching flow
+Once the request is resolved, wallet-api matches local wallet credentials against the OpenID4VP 1.0 `dcql_query`.
+
+That logic lives in:
+- `waltid-services/waltid-wallet-api/src/main/kotlin/id/walt/webwallet/service/exchange/OpenId4VpPresentationService.kt`
+
+The flow is:
+1. load wallet credentials from storage
+2. convert them into `RawDcqlCredential`
+3. run `DcqlMatcher.match(...)`
+4. map the matched DCQL credentials back to the real wallet credentials by ID
+
+This is intentionally not delegated to `DcqlHolderPolicyCheck`, because wallet-api needs:
+- the exact wallet credentials that matched
+- the real wallet credential IDs
+- per-query match results
+
+not just a boolean “policy passed” answer.
+
+Relevant standard reference:
+- DCQL-based request model in OpenID4VP 1.0:
+  - [https://openid.net/specs/openid-4-verifiable-presentations-1_0.html#section-6](https://openid.net/specs/openid-4-verifiable-presentations-1_0.html#section-6)
+
+### 5. Presentation submission flow
+When the user accepts, the frontend posts the resolved request and selected credential IDs back to wallet-api:
+- `waltid-applications/waltid-web-wallet/libs/composables/presentation.ts`
+
+wallet-api then hands the flow to the v1 holder library through:
+- `waltid-services/waltid-wallet-api/src/main/kotlin/id/walt/webwallet/service/SSIKit2WalletService.kt`
+- `waltid-libraries/protocols/waltid-openid4vp-wallet/src/commonMain/kotlin/id/waltid/openid4vp/wallet/WalletPresentFunctionality2.kt`
+
+Important detail:
+- if the original verifier request was signed, the final submission path still uses the original `request` JWT
+- that prevents a client-side tamper between resolve and submit from changing fields like `response_uri`
+
+This was one of the most important correctness fixes added during review.
+
+### 6. Draft vs v1 routing flow
+The branch keeps both protocol families alive side by side:
+- draft flow continues to use `presentation_definition`
+- OpenID4VP 1.0 flow uses `dcql_query` and the newer v1 holder library
+
+The protocol-selection logic is centered in:
+- `waltid-services/waltid-wallet-api/src/main/kotlin/id/walt/webwallet/service/SSIKit2WalletService.kt`
+
+Requests that clearly look like OpenID4VP 1.0 are routed into the v1 path; legacy requests continue through the old draft path.
+
+This matches the task requirement to support draft protocols and OpenID4VP 1.0 alongside each other rather than replacing one with the other.
 
 ## What This Branch Does Not Try To Do
 - it does not remove the draft flow
