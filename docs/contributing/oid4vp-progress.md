@@ -25,7 +25,7 @@
 
 ## Branch Heads
 - `feat/wallet-openid4vp-v1` at `44e181fc9`
-- `feat/transaction-data-support` at `48d0fe2df`
+- `feat/transaction-data-support` at `78fa49e4e`
 
 ## Feature Branch Status
 - `feat/wallet-openid4vp-v1`
@@ -43,11 +43,11 @@
   - PR base is `feat/wallet-openid4vp-v1`
   - branch was restacked onto the current task-1 head after the latest task-1 review round
   - current task-2-only commits on top of task 1:
-    - `f3dcf6221` `feat: add transaction data support`
-    - `c19b398cc` `fix: tighten transaction data response validation`
-    - `6e31d7273` `fix: tighten transaction data validation and demo config`
-    - `bace9a200` `fix: tighten transaction data response validation`
-    - `48d0fe2df` `fix: restore transaction data key binding handling after restack`
+    - `8030f01e7` `feat: add transaction data support`
+    - `51cfd87a0` `fix: tighten transaction data response validation`
+    - `5be450608` `fix: tighten transaction data validation and demo config`
+    - `848818e7c` `fix: tighten transaction data response validation`
+    - `78fa49e4e` `fix: restore transaction data key binding handling after restack`
 
 ## Commit Separation
 - Docs commits stay on docs branch.
@@ -91,8 +91,8 @@
   - latest task-1 direct artifact set: `/tmp/waltid-playwright/artifacts/direct-2026-04-09T19-22-47.927Z`
   - latest task-1 inline-request artifact set: `/tmp/waltid-playwright/artifacts/request-2026-04-09T19-22-47.928Z`
   - latest task-1 signed-request artifact set: `/tmp/waltid-playwright/artifacts/signed-request-2026-04-09T19-31-56.517Z`
-  - latest task-2 SD-JWT artifact set: `/tmp/waltid-playwright/artifacts/2026-04-08T16-25-47.193Z`
-  - latest task-2 mdoc artifact set: `/tmp/waltid-playwright/artifacts/2026-04-08T16-26-16.190Z`
+  - latest task-2 SD-JWT artifact set: `/tmp/waltid-playwright/artifacts/2026-04-09T19-39-35.888Z`
+  - latest task-2 mdoc artifact set: `/tmp/waltid-playwright/artifacts/2026-04-09T19-39-47.994Z`
 - Full repo CI-like validation:
   - `./gradlew clean build cleanAllTests allTests --rerun-tasks --no-daemon --max-workers=3`
   - current outcome: branch-related wallet/integration/e2e suites are green; the full run still fails in unrelated JS-node test `VcApiTest.testVcApi[js, node]` under `waltid-libraries/credentials/waltid-w3c-credentials`
@@ -105,6 +105,8 @@
 - The local Playwright harness is worth keeping, but it now clearly behaves like verification tooling rather than product code.
   - signed request-object browser verification requires the verifier2 temp config to use `clientId: "x509_san_dns:verifier.example.com"`
   - the demo wallet browser path is the most reliable verification target today
+- Restacking PR 2 after the late PR 1 hardening pass was mostly a request-resolution integration exercise.
+  - the important re-check after that restack was not just the focused Kotlin suite but also a fresh SD-JWT and mdoc browser run against rebuilt images
 
 ## Remaining Before Upstream Publication
 - Record the final manual demo outside git.

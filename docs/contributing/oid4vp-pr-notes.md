@@ -2,7 +2,7 @@
 
 ## Current Branch Heads
 - `feat/wallet-openid4vp-v1` at `44e181fc9`
-- `feat/transaction-data-support` at `48d0fe2df`
+- `feat/transaction-data-support` at `78fa49e4e`
 
 ## Current Fork PRs
 - PR 1: [Add OpenID4VP 1.0 support to wallet-api](https://github.com/szijpeter/waltid-identity/pull/3)
@@ -40,7 +40,7 @@
 - Add minimal verifier demo flow and wallet authorization UX.
 - Support both `dc+sd-jwt` and `mso_mdoc` transaction-data presentation paths.
 - Align verifier validation with the policy-based direction described in issue `#1583`.
-- Current branch is cleanly restacked on top of the current task-1 head at `117d4a233`.
+- Current branch is cleanly restacked on top of the current task-1 head at `44e181fc9`.
 - Current branch contains the feature commit plus targeted review-driven hardening commits and one post-restack fix restoring SD-JWT transaction-data key binding hashing.
 
 ### Exclusions
@@ -67,6 +67,11 @@
   - direct flow: `/tmp/waltid-playwright/artifacts/direct-2026-04-09T19-22-47.927Z`
   - inline `request` flow: `/tmp/waltid-playwright/artifacts/request-2026-04-09T19-22-47.928Z`
   - signed request-object flow: `/tmp/waltid-playwright/artifacts/signed-request-2026-04-09T19-31-56.517Z`
+- Current branch 2 post-restack checks:
+  - `./gradlew --no-build-cache --no-daemon :waltid-libraries:protocols:waltid-openid4vp:jvmTest --tests 'id.walt.verifier.openid.TransactionDataUtilsTest' :waltid-libraries:credentials:waltid-verification-policies2-vp:jvmTest --tests 'id.walt.policies2.vp.policies.TransactionDataHashCheckSdJwtVPPolicyTest' --tests 'id.walt.policies2.vp.policies.TransactionDataMdocVpPolicyTest' :waltid-services:waltid-wallet-api:test --tests 'id.walt.webwallet.service.exchange.OpenId4VpPresentationServiceTest' :waltid-services:waltid-verifier-api2:test --tests 'id.walt.verifier2.sdjwt.IETFSdJwtVcWithDisclosureVerifier2IntegrationTest' --tests 'id.walt.verifier2.mdocs.PidBirthDateIssuerSignedIntegrityReproTest'`
+  - browser E2E artifacts:
+    - SD-JWT transaction flow: `/tmp/waltid-playwright/artifacts/2026-04-09T19-39-35.888Z`
+    - mdoc transaction flow: `/tmp/waltid-playwright/artifacts/2026-04-09T19-39-47.994Z`
 
 ## Remaining Before Publication
 - Final manual demo recording is still pending and should stay outside git.
