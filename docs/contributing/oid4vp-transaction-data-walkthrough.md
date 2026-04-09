@@ -2,9 +2,19 @@
 
 ## Branch and PR
 - Branch: `feat/transaction-data-support`
-- Current head: `b1388dc15`
+- Current head: `48d0fe2df`
 - Fork PR: [https://github.com/szijpeter/waltid-identity/pull/4](https://github.com/szijpeter/waltid-identity/pull/4)
 - Base branch: `feat/wallet-openid4vp-v1`
+
+## Current stacked shape
+This branch is currently restacked on top of task 1 at `117d4a233`.
+
+Current task-2-only commits on top of task 1:
+- `f3dcf6221` `feat: add transaction data support`
+- `c19b398cc` `fix: tighten transaction data response validation`
+- `6e31d7273` `fix: tighten transaction data validation and demo config`
+- `bace9a200` `fix: tighten transaction data response validation`
+- `48d0fe2df` `fix: restore transaction data key binding handling after restack`
 
 ## Task and Intent
 The goal of this branch is to complete `transaction_data` support end to end in OSS:
@@ -319,6 +329,16 @@ Latest successful artifact sets:
 - SD-JWT: `/tmp/waltid-playwright/artifacts/2026-04-08T16-25-47.193Z`
 - mdoc: `/tmp/waltid-playwright/artifacts/2026-04-08T16-26-16.190Z`
 
+### Additional post-restack verification
+After restacking the branch onto the latest task-1 head, the following focused validation was rerun to confirm the shared wallet path still compiles and the transaction-data validation path still behaves correctly:
+
+```bash
+./gradlew --no-build-cache \
+  :waltid-libraries:protocols:waltid-openid4vp:jvmTest --tests 'id.walt.verifier.openid.TransactionDataUtilsTest' \
+  :waltid-libraries:credentials:waltid-verification-policies2-vp:jvmTest --tests 'id.walt.policies2.vp.policies.TransactionDataHashCheckSdJwtVPPolicyTest' --tests 'id.walt.policies2.vp.policies.TransactionDataMdocVpPolicyTest' \
+  :waltid-services:waltid-wallet-api:test --tests 'id.walt.webwallet.service.exchange.OpenId4VpPresentationServiceTest'
+```
+
 ## Manual Verification Guide
 
 ### Recommended stack startup
@@ -382,4 +402,3 @@ Recommended approach:
 - Are the supported transaction-data formats exactly the ones the repo can defend with standards-backed behavior?
 - Was keeping the public validator compatibility layer the right non-breaking tradeoff?
 - Are the issuer-side mdoc authorization changes narrow enough for a feature branch like this?
-

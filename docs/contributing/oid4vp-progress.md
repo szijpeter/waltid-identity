@@ -24,27 +24,29 @@
 - Feature branch 2: `feat/transaction-data-support`
 
 ## Branch Heads
-- `feat/wallet-openid4vp-v1` at `b9611fda2`
-- `feat/transaction-data-support` at `b1388dc15`
+- `feat/wallet-openid4vp-v1` at `117d4a233`
+- `feat/transaction-data-support` at `48d0fe2df`
 
 ## Feature Branch Status
 - `feat/wallet-openid4vp-v1`
   - pushed to fork and under review
   - fork PR: [https://github.com/szijpeter/waltid-identity/pull/3](https://github.com/szijpeter/waltid-identity/pull/3)
-  - current commits on top of `origin/main`:
+  - current branch evolved through review-driven hardening and cleanup after the initial feature commit
+  - notable commits on top of `origin/main`:
     - `426feec27` `feat: add OpenID4VP wallet request handling`
-    - `b495467b0` `fix: harden OpenID4VP wallet request handling`
-    - `2025654f9` `fix: tighten OpenID4VP wallet request handling`
-    - `b9611fda2` `fix: harden OpenID4VP request parsing and submission`
+    - `d03e039df` `fix: align OpenID4VP request parameter encoding`
+    - `117d4a233` `refactor: streamline OpenID4VP presentation handling`
 - `feat/transaction-data-support`
   - pushed to fork and under review
   - fork PR: [https://github.com/szijpeter/waltid-identity/pull/4](https://github.com/szijpeter/waltid-identity/pull/4)
   - PR base is `feat/wallet-openid4vp-v1`
+  - branch was restacked onto the current task-1 head after the latest task-1 review round
   - current task-2-only commits on top of task 1:
-    - `e39328932` `feat: add transaction data support`
-    - `6dc4808c1` `fix: tighten transaction data response validation`
-    - `228954e40` `fix: tighten transaction data validation and demo config`
-    - `b1388dc15` `fix: tighten transaction data response validation`
+    - `f3dcf6221` `feat: add transaction data support`
+    - `c19b398cc` `fix: tighten transaction data response validation`
+    - `6e31d7273` `fix: tighten transaction data validation and demo config`
+    - `bace9a200` `fix: tighten transaction data response validation`
+    - `48d0fe2df` `fix: restore transaction data key binding handling after restack`
 
 ## Commit Separation
 - Docs commits stay on docs branch.
@@ -67,6 +69,8 @@
 - Task 2 focused validation:
   - `./gradlew --no-build-cache :waltid-libraries:protocols:waltid-openid4vp:jvmTest --tests 'id.walt.verifier.openid.TransactionDataUtilsTest' :waltid-libraries:credentials:waltid-verification-policies2-vp:jvmTest --tests 'id.walt.policies2.vp.policies.TransactionDataHashCheckSdJwtVPPolicyTest' --tests 'id.walt.policies2.vp.policies.TransactionDataMdocVpPolicyTest' :waltid-services:waltid-verifier-api2:test --tests 'id.walt.verifier2.sdjwt.IETFSdJwtVcWithDisclosureVerifier2IntegrationTest' --tests 'id.walt.verifier2.mdocs.PidBirthDateIssuerSignedIntegrityReproTest'`
   - `./gradlew --no-build-cache :waltid-services:waltid-issuer-api:compileKotlin :waltid-services:waltid-wallet-api:test --tests 'id.walt.webwallet.service.exchange.OpenId4VpPresentationServiceTest'`
+  - post-restack validation:
+    - `./gradlew --no-build-cache :waltid-libraries:protocols:waltid-openid4vp:jvmTest --tests 'id.walt.verifier.openid.TransactionDataUtilsTest' :waltid-libraries:credentials:waltid-verification-policies2-vp:jvmTest --tests 'id.walt.policies2.vp.policies.TransactionDataHashCheckSdJwtVPPolicyTest' --tests 'id.walt.policies2.vp.policies.TransactionDataMdocVpPolicyTest' :waltid-services:waltid-wallet-api:test --tests 'id.walt.webwallet.service.exchange.OpenId4VpPresentationServiceTest'`
 - Production Docker validation:
   - `docker build -t waltid-web-portal-local -f waltid-applications/waltid-web-portal/Dockerfile .`
   - `docker build -t waltid-demo-wallet-local -f waltid-applications/waltid-web-wallet/apps/waltid-demo-wallet/Dockerfile .`

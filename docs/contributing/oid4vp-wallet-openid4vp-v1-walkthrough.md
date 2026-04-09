@@ -2,7 +2,7 @@
 
 ## Branch and PR
 - Branch: `feat/wallet-openid4vp-v1`
-- Current head: `b9611fda2`
+- Current head: `117d4a233`
 - Fork PR: [https://github.com/szijpeter/waltid-identity/pull/3](https://github.com/szijpeter/waltid-identity/pull/3)
 
 ## Task and Intent
@@ -55,6 +55,15 @@ Before this branch, the OSS wallet path in `waltid-services/waltid-wallet-api` w
 Relevant existing files:
 - `waltid-services/waltid-wallet-api/src/main/kotlin/id/walt/webwallet/service/SSIKit2WalletService.kt`
 - `waltid-services/waltid-wallet-api/src/main/kotlin/id/walt/webwallet/web/controllers/exchange/ExchangeController.kt`
+
+## Notable review-driven hardening after the initial implementation
+The branch moved beyond the first feature commit during fork review rounds. The most important follow-up changes were:
+- shared request resolution in `waltid-openid4vp-wallet` so wallet-api and wallet library use the same `request` / `request_uri` logic
+- shared authorization request parameter parsing and encoding so plain scalar query parameters stay plain scalars while structured JSON values stay JSON
+- stricter wallet-api submission handling so only successful v1 submissions log `Credential.Present`
+- clearer request matching/submission flow in wallet-api and the web wallet composable
+
+Those changes did not change the intended feature scope; they made the final branch more correct and more internally consistent with the repo's protocol handling.
 
 ### In the shared libraries
 The repo already had:
@@ -316,4 +325,3 @@ This is the easiest practical smoke because it exercises the same OpenID4VP 1.0 
 - Are the v1 request parsing rules strict enough without being incompatible with verifier2?
 - Is the controller/API surface still readable after adding the request-oriented matching path?
 - Do the UI changes stay minimal and consistent with the rest of the web wallet?
-
