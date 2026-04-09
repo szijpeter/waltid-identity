@@ -1,0 +1,13 @@
+services:
+  wallet-api:
+    image: waltid/wallet-api:stable
+  verifier-api2:
+    image: waltid/verifier-api2:stable
+  issuer-api:
+    image: waltid/issuer-api:stable
+  waltid-demo-wallet:
+    image: waltid/waltid-demo-wallet:stable
+  waltid-dev-wallet:
+    image: waltid/waltid-dev-wallet:stable
+  web-portal:
+    image: waltid/portal:stable

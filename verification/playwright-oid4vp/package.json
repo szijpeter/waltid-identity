@@ -1,0 +1,13 @@
+{
+  "name": "playwright-oid4vp-harness",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "record:base": "node record-openid4vp-base.mjs",
+    "record:shape": "node record-openid4vp-shape.mjs",
+    "record:transaction": "node record-transaction-demo.mjs"
+  },
+  "dependencies": {
+    "playwright": "^1.59.1"
+  }
+}
