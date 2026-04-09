@@ -24,7 +24,7 @@
 - Feature branch 2: `feat/transaction-data-support`
 
 ## Branch Heads
-- `feat/wallet-openid4vp-v1` at `117d4a233`
+- `feat/wallet-openid4vp-v1` at `44e181fc9`
 - `feat/transaction-data-support` at `48d0fe2df`
 
 ## Feature Branch Status
@@ -32,10 +32,11 @@
   - pushed to fork and under review
   - fork PR: [https://github.com/szijpeter/waltid-identity/pull/3](https://github.com/szijpeter/waltid-identity/pull/3)
   - current branch evolved through review-driven hardening and cleanup after the initial feature commit
-  - notable commits on top of `origin/main`:
+  - latest review-driven hardening also restored legacy draft compatibility for signed request-object flows that still use plain `http` / `https` client IDs
+  - notable commits on top of `origin/main` now include:
     - `426feec27` `feat: add OpenID4VP wallet request handling`
-    - `d03e039df` `fix: align OpenID4VP request parameter encoding`
     - `117d4a233` `refactor: streamline OpenID4VP presentation handling`
+    - `44e181fc9` `fix: restore legacy draft request object fallback`
 - `feat/transaction-data-support`
   - pushed to fork and under review
   - fork PR: [https://github.com/szijpeter/waltid-identity/pull/4](https://github.com/szijpeter/waltid-identity/pull/4)
@@ -66,6 +67,10 @@
 ## Completed Validation
 - Task 1 focused validation:
   - `./gradlew --no-build-cache :waltid-services:waltid-wallet-api:test --tests 'id.walt.webwallet.service.exchange.OpenId4VpPresentationServiceTest'`
+  - readiness rerun on current branch head:
+    - `./gradlew --no-daemon --max-workers=3 --rerun-tasks :waltid-services:waltid-wallet-api:test --tests 'id.walt.webwallet.service.exchange.OpenId4VpPresentationServiceTest'`
+  - legacy compatibility rerun on current branch head:
+    - `./gradlew --no-daemon --max-workers=3 --rerun-tasks :waltid-services:waltid-integration-tests:test :waltid-services:waltid-e2e-tests:test`
 - Task 2 focused validation:
   - `./gradlew --no-build-cache :waltid-libraries:protocols:waltid-openid4vp:jvmTest --tests 'id.walt.verifier.openid.TransactionDataUtilsTest' :waltid-libraries:credentials:waltid-verification-policies2-vp:jvmTest --tests 'id.walt.policies2.vp.policies.TransactionDataHashCheckSdJwtVPPolicyTest' --tests 'id.walt.policies2.vp.policies.TransactionDataMdocVpPolicyTest' :waltid-services:waltid-verifier-api2:test --tests 'id.walt.verifier2.sdjwt.IETFSdJwtVcWithDisclosureVerifier2IntegrationTest' --tests 'id.walt.verifier2.mdocs.PidBirthDateIssuerSignedIntegrityReproTest'`
   - `./gradlew --no-build-cache :waltid-services:waltid-issuer-api:compileKotlin :waltid-services:waltid-wallet-api:test --tests 'id.walt.webwallet.service.exchange.OpenId4VpPresentationServiceTest'`
@@ -76,12 +81,30 @@
   - `docker build -t waltid-demo-wallet-local -f waltid-applications/waltid-web-wallet/apps/waltid-demo-wallet/Dockerfile .`
   - `docker build -t waltid-dev-wallet-local -f waltid-applications/waltid-web-wallet/apps/waltid-dev-wallet/Dockerfile .`
 - Automated end-to-end validation:
-  - Playwright base OpenID4VP 1.0 wallet flow completed successfully for task 1
+  - Playwright base OpenID4VP 1.0 wallet flow completed successfully for task 1 on current branch head
+  - Playwright direct query-parameter launch flow completed successfully on current branch head
+  - Playwright inline `request` launch flow completed successfully on current branch head
+  - Playwright signed request-object flow completed successfully on current branch head when verifier2 is started with the `x509_san_dns:verifier.example.com` profile
   - Playwright transaction flow completed successfully for `dc+sd-jwt`
   - Playwright transaction flow completed successfully for `mso_mdoc`
-  - latest task-1 artifact set: `/tmp/waltid-playwright/artifacts/base-2026-04-08T16-13-47.561Z`
+  - latest task-1 base artifact set: `/tmp/waltid-playwright/artifacts/base-2026-04-09T19-22-47.927Z`
+  - latest task-1 direct artifact set: `/tmp/waltid-playwright/artifacts/direct-2026-04-09T19-22-47.927Z`
+  - latest task-1 inline-request artifact set: `/tmp/waltid-playwright/artifacts/request-2026-04-09T19-22-47.928Z`
+  - latest task-1 signed-request artifact set: `/tmp/waltid-playwright/artifacts/signed-request-2026-04-09T19-31-56.517Z`
   - latest task-2 SD-JWT artifact set: `/tmp/waltid-playwright/artifacts/2026-04-08T16-25-47.193Z`
   - latest task-2 mdoc artifact set: `/tmp/waltid-playwright/artifacts/2026-04-08T16-26-16.190Z`
+- Full repo CI-like validation:
+  - `./gradlew clean build cleanAllTests allTests --rerun-tasks --no-daemon --max-workers=3`
+  - current outcome: branch-related wallet/integration/e2e suites are green; the full run still fails in unrelated JS-node test `VcApiTest.testVcApi[js, node]` under `waltid-libraries/credentials/waltid-w3c-credentials`
+
+## Recent Learnings
+- Strict OpenID4VP 1.0 request routing and legacy draft compatibility need a narrow escape hatch, not a broad fallback.
+  - Real verifier2/v1 requests should still fail hard when request resolution or signed request-object validation fails.
+  - Legacy draft request-object flows in the older test suites still use plain `http` / `https` client IDs, so wallet-api now falls back only for `UnsupportedPrefix(http|https)` when that failure came from signed request-object validation.
+- Preserving signed Request Objects end to end was the right correctness choice, but it made the frontend read-side slightly heavier because the UI sometimes has to inspect a preserved `request=<jwt>` payload rather than flattened query params.
+- The local Playwright harness is worth keeping, but it now clearly behaves like verification tooling rather than product code.
+  - signed request-object browser verification requires the verifier2 temp config to use `clientId: "x509_san_dns:verifier.example.com"`
+  - the demo wallet browser path is the most reliable verification target today
 
 ## Remaining Before Upstream Publication
 - Record the final manual demo outside git.

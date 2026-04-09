@@ -2,7 +2,7 @@
 
 ## Branch and PR
 - Branch: `feat/wallet-openid4vp-v1`
-- Current head: `7167872cc`
+- Current head: `44e181fc9`
 - Fork PR: [https://github.com/szijpeter/waltid-identity/pull/3](https://github.com/szijpeter/waltid-identity/pull/3)
 
 ## Task and Intent
@@ -96,6 +96,20 @@ That design was chosen because it is the smallest change that:
 - preserves draft compatibility
 - unlocks verifier2 interoperability
 - stays consistent with the repo’s existing split between `openid4vc` and `openid4vp` libraries
+
+## Most Important Review-driven Hardening
+The initial feature implementation was correct in broad shape, but the fork review rounds surfaced a few places where the final branch is now materially better:
+- request resolution is now shared between wallet-api and the v1 wallet library instead of duplicated
+- query-parameter parsing/encoding now follows one explicit rule everywhere:
+  - plain scalar request parameters stay plain strings
+  - only explicitly JSON-encoded values are parsed as JSON
+- signed Request Objects are preserved through resolve and final submit instead of being flattened into loose query parameters
+- wallet event logging now only records actual successful presentations
+- the final review pass restored a narrow legacy draft fallback for signed request-object flows that still use plain `http` / `https` client IDs in the old suites, without weakening strict handling of real verifier2/v1 requests
+
+That last point is worth calling out because it reflects the eventual intended layering:
+- strict v1 requests should still fail hard if request resolution or signed request-object validation fails
+- only the legacy draft compatibility edge gets the fallback
 
 ## File-by-file walkthrough
 
@@ -377,6 +391,11 @@ Requests that clearly look like OpenID4VP 1.0 are routed into the v1 path; legac
 
 This matches the task requirement to support draft protocols and OpenID4VP 1.0 alongside each other rather than replacing one with the other.
 
+One subtle point discovered during readiness work:
+- `request_uri` is a strong v1 signal, but some legacy draft suites still reach wallet-api through signed request-object handling and use plain `http` / `https` client IDs
+- wallet-api now falls back only for the specific `UnsupportedPrefix(http|https)` failure that comes from signed request-object validation
+- this keeps verifier2/OpenID4VP 1.0 strict while preserving old draft compatibility
+
 ## What This Branch Does Not Try To Do
 - it does not remove the draft flow
 - it does not implement `transaction_data`
@@ -392,15 +411,39 @@ That separation is intentional so PR 1 stays focused and reviewable.
 ./gradlew --no-build-cache :waltid-services:waltid-wallet-api:test --tests 'id.walt.webwallet.service.exchange.OpenId4VpPresentationServiceTest'
 ```
 
-### CI-like image build and browser E2E
-The branch was also validated by:
-- building the wallet-api and verifier2 images with `jibDockerBuild`
-- building the demo wallet Docker image
-- running the local compose stack
-- driving a browser E2E presentation flow against verifier2
+### Current readiness reruns on branch head `44e181fc9`
+```bash
+./gradlew --no-daemon --max-workers=3 --rerun-tasks :waltid-services:waltid-wallet-api:test --tests 'id.walt.webwallet.service.exchange.OpenId4VpPresentationServiceTest'
+./gradlew --no-daemon --max-workers=3 --rerun-tasks :waltid-services:waltid-integration-tests:test :waltid-services:waltid-e2e-tests:test
+./gradlew clean build cleanAllTests allTests --rerun-tasks --no-daemon --max-workers=3
+```
 
-Latest successful task-1 browser artifact set:
-- `/tmp/waltid-playwright/artifacts/base-2026-04-08T16-13-47.561Z`
+Readiness result:
+- focused wallet-api suite passed
+- legacy integration and e2e suites passed
+- the full repo CI-like run still fails in unrelated JS-node test `VcApiTest.testVcApi[js, node]` under `waltid-libraries/credentials/waltid-w3c-credentials`
+
+### Browser E2E
+The branch was also validated by:
+- rebuilding the wallet-api image with `jibDockerBuild`
+- rebuilding the wallet web apps in Docker
+- running the local compose stack
+- driving browser E2E scenarios against verifier2 and the wallet UI
+
+Current successful task-1 browser artifacts:
+- base verifier2 `request_uri` flow:
+  - `/tmp/waltid-playwright/artifacts/base-2026-04-09T19-22-47.927Z`
+- direct query-parameter flow:
+  - `/tmp/waltid-playwright/artifacts/direct-2026-04-09T19-22-47.927Z`
+- inline `request` Request Object flow:
+  - `/tmp/waltid-playwright/artifacts/request-2026-04-09T19-22-47.928Z`
+- signed request-object flow:
+  - `/tmp/waltid-playwright/artifacts/signed-request-2026-04-09T19-31-56.517Z`
+
+Important note about the signed-request artifact:
+- the verifier2 temp config must use `clientId: "x509_san_dns:verifier.example.com"` for that scenario
+- if verifier2 is running with its default `clientId: "verifier2"` profile, the wallet correctly produces a KB-JWT audience for `x509_san_dns:verifier.example.com`, and verifier2 correctly rejects that as an audience mismatch
+- that is a harness/config alignment issue, not a production bug in this branch
 
 ## Manual Verification Guide
 
@@ -442,11 +485,36 @@ This is the easiest practical smoke because it exercises the same OpenID4VP 1.0 
    - the presentation succeeds
    - verifier2 marks the session as successful
 
+#### Option C: signed request-object smoke
+1. Start verifier2 with a client-id-prefix profile, for example:
+   - `clientId: "x509_san_dns:verifier.example.com"`
+2. Create a verifier2 session and fetch its authorization request.
+3. Wrap the authorization request into an ES256-signed Request Object with:
+   - `typ: "oauth-authz-req+jwt"`
+   - an `x5c` chain whose SAN DNS matches `verifier.example.com`
+4. Open the resulting `openid4vp://authorize?request=<jwt>` link in the wallet.
+5. Confirm that:
+   - wallet-api resolves the Request Object successfully
+   - the wallet displays the matching credential
+   - the presentation succeeds
+   - verifier2 accepts the KB-JWT audience and marks the session successful
+
 ### What to specifically watch for
 - the wallet should not fail on JSON `request_uri` responses from verifier2
 - the wallet should not fall back to draft parsing for a real v1 request
 - the request should be matched against `dcql_query`, not `presentation_definition`
 - successful presentations should show up in the wallet event/history log
+- old draft signed request-object flows that still use plain `http` / `https` client IDs should still work through the legacy path
+
+## Key Learnings
+- Preserving signed Request Objects end to end was the right correctness tradeoff even though it made the frontend request-inspection path a little heavier.
+- The real protocol boundary is between:
+  - semantic request resolution and matching in wallet-api / shared v1 libraries
+  - display-only interpretation in the web-wallet composable
+- The final compatibility fix belongs in wallet-api routing, not in the shared v1 library:
+  - the v1 library should stay strict
+  - wallet-api is the right place to decide when to fall back to the draft path
+- The local Playwright harness is useful enough to keep, but it should probably live on a separate verification branch if we want it preserved in git without turning it into product code.
 
 ## Review Questions Worth Asking During Manual Review
 - Is the draft/v1 split placed in the right layer, or should more of it live deeper in the shared libraries?
