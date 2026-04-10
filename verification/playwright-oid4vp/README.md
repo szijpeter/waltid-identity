@@ -68,7 +68,8 @@ Each run now stores both sides:
   - `verifier-session-info-{initial|final}.json`
   - `verifier-request-{initial|final}.txt`
   - `verifier-request-{initial|final}.meta.json`
-  - `verifier-info-{initial|final}.png`
+  - `verifier-summary-{initial|final}.html`
+  - `verifier-summary-{initial|final}.png`
 
 ## Useful environment variables
 

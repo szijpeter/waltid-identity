@@ -1,5 +1,6 @@
 import fs from "node:fs/promises";
 import path from "node:path";
+import { pathToFileURL } from "node:url";
 import { createPrivateKey, sign as nodeSign } from "node:crypto";
 import { chromium, request as playwrightRequest } from "playwright";
 
@@ -339,24 +340,25 @@ export async function recordVerifierArtifacts(
     "utf8",
   );
 
-  return sessionInfo;
+  return { sessionInfo, requestSnapshot };
 }
 
-export async function saveVerifierInfoScreenshot(
+export async function saveVerifierSummaryScreenshot(
   context,
   sessionId,
+  sessionInfo,
+  requestSnapshot,
   artifactDir,
-  config = defaults,
   phase = "current",
 ) {
-  const verifierPage = await context.newPage();
-  verifierPage.setDefaultTimeout(config.timeoutMs);
-  await verifierPage.goto(
-    `${config.verifier2BaseUrl}/verification-session/${sessionId}/info`,
-    { waitUntil: "networkidle" },
-  );
-  await saveScreenshot(verifierPage, artifactDir, `verifier-info-${phase}.png`);
-  await verifierPage.close();
+  const summaryPath = path.join(artifactDir, `verifier-summary-${phase}.html`);
+  const html = buildVerifierSummaryHtml(sessionId, sessionInfo, requestSnapshot);
+  await fs.writeFile(summaryPath, html, "utf8");
+
+  const page = await context.newPage();
+  await page.goto(pathToFileURL(summaryPath).toString(), { waitUntil: "networkidle" });
+  await saveScreenshot(page, artifactDir, `verifier-summary-${phase}.png`);
+  await page.close();
 }
 
 export async function waitForTerminalSessionStatus(api, sessionId, config = defaults) {
@@ -510,4 +512,61 @@ function rewriteVerifier2Port(value, config) {
   return value
     .replaceAll("http://localhost:7003", config.verifier2BaseUrl)
     .replaceAll("http%3A%2F%2Flocalhost%3A7003", encodedVerifier2BaseUrl);
+}
+
+function buildVerifierSummaryHtml(sessionId, sessionInfo, requestSnapshot) {
+  const status = escapeHtml(String(sessionInfo?.status ?? "UNKNOWN"));
+  const attempted = escapeHtml(String(sessionInfo?.attempted ?? "n/a"));
+  const requestMode = escapeHtml(String(sessionInfo?.requestMode ?? "n/a"));
+  const responseMode = escapeHtml(String(sessionInfo?.authorizationRequest?.response_mode ?? "n/a"));
+  const contentType = escapeHtml(String(requestSnapshot?.contentType ?? "n/a"));
+  const sessionJson = escapeHtml(JSON.stringify(sessionInfo, null, 2));
+  const requestText = escapeHtml(requestSnapshot?.body ?? "");
+  return `<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Verifier Summary ${escapeHtml(sessionId)}</title>
+  <style>
+    body { font-family: ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; margin: 0; background: #f4f6f8; color: #0f172a; }
+    .wrap { max-width: 1080px; margin: 0 auto; padding: 28px; }
+    .card { background: #fff; border-radius: 16px; box-shadow: 0 8px 28px rgba(2, 6, 23, 0.08); padding: 20px; margin-bottom: 16px; }
+    h1 { margin: 0 0 12px; font-size: 28px; }
+    h2 { margin: 0 0 10px; font-size: 18px; }
+    .meta { display: grid; grid-template-columns: repeat(3, minmax(180px, 1fr)); gap: 10px; margin-top: 10px; }
+    .pill { background: #eef2f6; border-radius: 10px; padding: 10px 12px; font-size: 13px; }
+    .k { color: #475569; font-size: 12px; display: block; margin-bottom: 3px; text-transform: uppercase; letter-spacing: 0.03em; }
+    pre { margin: 0; white-space: pre-wrap; word-break: break-word; background: #0b1220; color: #d6e0ff; border-radius: 12px; padding: 14px; font-size: 12px; line-height: 1.45; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="card">
+      <h1>Verifier Session ${escapeHtml(sessionId)}</h1>
+      <div class="meta">
+        <div class="pill"><span class="k">Status</span>${status}</div>
+        <div class="pill"><span class="k">Attempted</span>${attempted}</div>
+        <div class="pill"><span class="k">Request mode</span>${requestMode}</div>
+        <div class="pill"><span class="k">Response mode</span>${responseMode}</div>
+        <div class="pill"><span class="k">Request content type</span>${contentType}</div>
+      </div>
+    </div>
+    <div class="card">
+      <h2>Session Info JSON</h2>
+      <pre>${sessionJson}</pre>
+    </div>
+    <div class="card">
+      <h2>Request Snapshot</h2>
+      <pre>${requestText}</pre>
+    </div>
+  </div>
+</body>
+</html>`;
+}
+
+function escapeHtml(value) {
+  return String(value)
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;");
 }

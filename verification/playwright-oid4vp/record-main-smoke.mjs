@@ -15,7 +15,7 @@ import {
   recordVerifierArtifacts,
   registerAndLogin,
   saveScreenshot,
-  saveVerifierInfoScreenshot,
+  saveVerifierSummaryScreenshot,
 } from "./lib/common.mjs";
 
 async function main() {
@@ -56,7 +56,14 @@ async function main() {
     sessionId = session.sessionId;
 
     const verifierInitial = await recordVerifierArtifacts(api, sessionId, artifactDir, defaults, "initial");
-    await saveVerifierInfoScreenshot(context, sessionId, artifactDir, defaults, "initial");
+    await saveVerifierSummaryScreenshot(
+      context,
+      sessionId,
+      verifierInitial.sessionInfo,
+      verifierInitial.requestSnapshot,
+      artifactDir,
+      "initial",
+    );
 
     await page.goto(`${defaults.walletBaseUrl}/wallet/${walletId}`, { waitUntil: "networkidle" });
     await saveScreenshot(page, artifactDir, "01-wallet-overview.png");

@@ -21,7 +21,7 @@ import {
   registerAndLogin,
   requestPayloadToUrl,
   saveScreenshot,
-  saveVerifierInfoScreenshot,
+  saveVerifierSummaryScreenshot,
   waitForTerminalSessionStatus,
 } from "./lib/common.mjs";
 
@@ -59,8 +59,15 @@ async function main() {
       },
     }, defaults);
     sessionId = session.sessionId;
-    await recordVerifierArtifacts(api, sessionId, artifactDir, defaults, "initial");
-    await saveVerifierInfoScreenshot(context, sessionId, artifactDir, defaults, "initial");
+    const verifierInitial = await recordVerifierArtifacts(api, sessionId, artifactDir, defaults, "initial");
+    await saveVerifierSummaryScreenshot(
+      context,
+      sessionId,
+      verifierInitial.sessionInfo,
+      verifierInitial.requestSnapshot,
+      artifactDir,
+      "initial",
+    );
 
     const fetched = await fetchSessionRequest(api, sessionId, defaults);
     const requestPayload = JSON.parse(fetched.body);
@@ -81,7 +88,14 @@ async function main() {
 
     const terminal = await waitForTerminalSessionStatus(api, sessionId, defaults);
     const verifierFinal = await recordVerifierArtifacts(api, sessionId, artifactDir, defaults, "final");
-    await saveVerifierInfoScreenshot(context, sessionId, artifactDir, defaults, "final");
+    await saveVerifierSummaryScreenshot(
+      context,
+      sessionId,
+      verifierFinal.sessionInfo,
+      verifierFinal.requestSnapshot,
+      artifactDir,
+      "final",
+    );
     await saveScreenshot(page, artifactDir, "02-wallet-after-submit.png");
 
     console.log(`Artifacts saved in ${artifactDir}`);
