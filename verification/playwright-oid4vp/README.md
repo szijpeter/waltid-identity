@@ -18,6 +18,7 @@ It is intentionally kept outside the product branches and is not meant to be mer
   - wallet register/login
   - DID creation
   - credential issue + claim
+  - verifier2 session creation
 
 ## Assumptions
 
@@ -58,6 +59,16 @@ $HOME/.waltid-playwright-artifacts/<run-name>-<timestamp>/
 ```
 
 You can override the output root with `PLAYWRIGHT_ARTIFACTS_DIR`.
+
+Each run now stores both sides:
+- wallet evidence:
+  - screenshots
+  - browser videos
+- verifier evidence:
+  - `verifier-session-info-{initial|final}.json`
+  - `verifier-request-{initial|final}.txt`
+  - `verifier-request-{initial|final}.meta.json`
+  - `verifier-info-{initial|final}.png`
 
 ## Useful environment variables
 

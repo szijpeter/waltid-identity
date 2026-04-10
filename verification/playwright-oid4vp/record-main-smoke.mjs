@@ -1,8 +1,10 @@
 import {
   apiContext,
   attachConsoleLogging,
+  buildSdJwtCredentialQuery,
   claimOffer,
   createDid,
+  createVerificationSession,
   defaults,
   finalizeRun,
   issueCredentialOffer,
@@ -10,8 +12,10 @@ import {
   listWallets,
   loginInBrowser,
   makeArtifactDir,
+  recordVerifierArtifacts,
   registerAndLogin,
   saveScreenshot,
+  saveVerifierInfoScreenshot,
 } from "./lib/common.mjs";
 
 async function main() {
@@ -21,6 +25,7 @@ async function main() {
   attachConsoleLogging(page);
 
   let walletId = null;
+  let sessionId = null;
 
   try {
     const account = await registerAndLogin(api, defaults);
@@ -40,21 +45,43 @@ async function main() {
       throw new Error("Expected at least one claimed credential.");
     }
 
+    const session = await createVerificationSession(api, {
+      flow_type: "cross_device",
+      core_flow: {
+        dcql_query: {
+          credentials: [buildSdJwtCredentialQuery(defaults.issuerApiBaseUrl)],
+        },
+      },
+    }, defaults);
+    sessionId = session.sessionId;
+
+    const verifierInitial = await recordVerifierArtifacts(api, sessionId, artifactDir, defaults, "initial");
+    await saveVerifierInfoScreenshot(context, sessionId, artifactDir, defaults, "initial");
+
     await page.goto(`${defaults.walletBaseUrl}/wallet/${walletId}`, { waitUntil: "networkidle" });
     await saveScreenshot(page, artifactDir, "01-wallet-overview.png");
 
     console.log(`Artifacts saved in ${artifactDir}`);
-    console.log(JSON.stringify({ walletId, claimedCredentials: claimed.length, status: "SUCCESSFUL" }, null, 2));
+    console.log(JSON.stringify({
+      walletId,
+      sessionId,
+      claimedCredentials: claimed.length,
+      verifierInitialStatus: verifierInitial.status,
+      status: "SUCCESSFUL",
+    }, null, 2));
 
     await finalizeRun(context, browser, artifactDir, {
       walletId,
+      sessionId,
       claimedCredentials: claimed.length,
+      verifierInitialStatus: verifierInitial.status,
       status: "SUCCESSFUL",
       artifactDir,
     });
   } catch (error) {
     await finalizeRun(context, browser, artifactDir, {
       walletId,
+      sessionId,
       status: "FAILED",
       error: String(error),
       artifactDir,

@@ -13,10 +13,13 @@ import {
   issueCredentialOffer,
   launchBrowserContext,
   listWallets,
+  loginInBrowser,
   makeArtifactDir,
   openAndPresent,
+  recordVerifierArtifacts,
   registerAndLogin,
   saveScreenshot,
+  saveVerifierInfoScreenshot,
   waitForTerminalSessionStatus,
 } from "./lib/common.mjs";
 
@@ -46,7 +49,8 @@ async function main() {
   let walletId = null;
 
   try {
-    await registerAndLogin(api, defaults);
+    const account = await registerAndLogin(api, defaults);
+    await loginInBrowser(page, account, defaults);
     const wallets = await listWallets(api, defaults);
     walletId = wallets.wallets[0].id;
     const did = await createDid(api, walletId, "jwk", defaults);
@@ -73,6 +77,8 @@ async function main() {
     }, defaults);
     sessionId = session.sessionId;
     console.log(`Verifier session created: ${sessionId}`);
+    await recordVerifierArtifacts(api, sessionId, artifactDir, defaults, "initial");
+    await saveVerifierInfoScreenshot(context, sessionId, artifactDir, defaults, "initial");
 
     const launchUrl = buildLaunchUrl(
       defaults.walletBaseUrl,
@@ -87,6 +93,8 @@ async function main() {
     await openAndPresent(page, launchUrl, { expectTransactionDetails: true });
 
     const terminal = await waitForTerminalSessionStatus(api, sessionId, defaults);
+    const verifierFinal = await recordVerifierArtifacts(api, sessionId, artifactDir, defaults, "final");
+    await saveVerifierInfoScreenshot(context, sessionId, artifactDir, defaults, "final");
     await saveScreenshot(page, artifactDir, "03-wallet-after-submit.png");
 
     console.log(`Artifacts saved in ${artifactDir}`);
@@ -97,6 +105,7 @@ async function main() {
       sessionId,
       walletId,
       terminalStatus: terminal.status,
+      verifierFinalStatus: verifierFinal.status,
       artifactDir,
     });
   } catch (error) {

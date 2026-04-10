@@ -313,6 +313,52 @@ export async function fetchSessionInfo(api, sessionId, config = defaults) {
   return response.json();
 }
 
+export async function recordVerifierArtifacts(
+  api,
+  sessionId,
+  artifactDir,
+  config = defaults,
+  phase = "current",
+) {
+  const sessionInfo = await fetchSessionInfo(api, sessionId, config);
+  await fs.writeFile(
+    path.join(artifactDir, `verifier-session-info-${phase}.json`),
+    JSON.stringify(sessionInfo, null, 2),
+    "utf8",
+  );
+
+  const requestSnapshot = await fetchSessionRequest(api, sessionId, config);
+  await fs.writeFile(
+    path.join(artifactDir, `verifier-request-${phase}.txt`),
+    requestSnapshot.body,
+    "utf8",
+  );
+  await fs.writeFile(
+    path.join(artifactDir, `verifier-request-${phase}.meta.json`),
+    JSON.stringify({ contentType: requestSnapshot.contentType }, null, 2),
+    "utf8",
+  );
+
+  return sessionInfo;
+}
+
+export async function saveVerifierInfoScreenshot(
+  context,
+  sessionId,
+  artifactDir,
+  config = defaults,
+  phase = "current",
+) {
+  const verifierPage = await context.newPage();
+  verifierPage.setDefaultTimeout(config.timeoutMs);
+  await verifierPage.goto(
+    `${config.verifier2BaseUrl}/verification-session/${sessionId}/info`,
+    { waitUntil: "networkidle" },
+  );
+  await saveScreenshot(verifierPage, artifactDir, `verifier-info-${phase}.png`);
+  await verifierPage.close();
+}
+
 export async function waitForTerminalSessionStatus(api, sessionId, config = defaults) {
   const deadline = Date.now() + config.timeoutMs;
   while (Date.now() < deadline) {
@@ -354,16 +400,19 @@ export function makeSignedRequestObject(requestPayload, clientId = "x509_san_dns
   const signature = nodeSign(
     "sha256",
     Buffer.from(signingInput),
-    createPrivateKey({
-      key: {
-        kty: "EC",
-        crv: "P-256",
-        d: verifierRequestObjectKey.d,
-        x: verifierRequestObjectKey.x,
-        y: verifierRequestObjectKey.y,
-      },
-      format: "jwk",
-    }),
+    {
+      key: createPrivateKey({
+        key: {
+          kty: "EC",
+          crv: "P-256",
+          d: verifierRequestObjectKey.d,
+          x: verifierRequestObjectKey.x,
+          y: verifierRequestObjectKey.y,
+        },
+        format: "jwk",
+      }),
+      dsaEncoding: "ieee-p1363",
+    },
   );
   return `${signingInput}.${signature.toString("base64url")}`;
 }
