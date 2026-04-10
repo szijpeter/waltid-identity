@@ -11,7 +11,9 @@ const baseShapes = parseCsv(
 );
 const checkRequestUriPost = envBool("CHECK_REQUEST_URI_POST", true);
 const requireRequestUriPost = envBool("REQUIRE_REQUEST_URI_POST", false);
-const enableLegacySdJwtProbe = envBool("ENABLE_LEGACY_SDJWT_PROBE", false);
+const enableLegacySdJwtProbe = envBool("ENABLE_LEGACY_SDJWT_PROBE", true);
+const enableLegacySdJwtSignatureProbe = envBool("ENABLE_LEGACY_SDJWT_SIGNATURE_PROBE", true);
+const requireLegacySdJwtProbe = envBool("REQUIRE_LEGACY_SDJWT_PROBE", false);
 const legacySdJwtLabel = process.env.LEGACY_FORMAT_SD_JWT_LABEL ?? "SD-JWT VC";
 
 async function main() {
@@ -41,9 +43,23 @@ async function main() {
       runScript("record-portal-legacy.mjs", {
         ARTIFACT_BRANCH_TAG: artifactBranchTag,
         LEGACY_FORMAT: legacySdJwtLabel,
-        LEGACY_DISABLE_SIGNATURE_POLICY: process.env.LEGACY_DISABLE_SIGNATURE_POLICY ?? "false",
+        LEGACY_DISABLE_SIGNATURE_POLICY: process.env.LEGACY_DISABLE_SIGNATURE_POLICY ?? "true",
       }, {
-        id: "legacy-sd-jwt-probe",
+        id: "legacy-sd-jwt-signature-disabled",
+        kind: "legacy",
+        required: requireLegacySdJwtProbe,
+      }),
+    );
+  }
+
+  if (enableLegacySdJwtSignatureProbe) {
+    results.push(
+      runScript("record-portal-legacy.mjs", {
+        ARTIFACT_BRANCH_TAG: artifactBranchTag,
+        LEGACY_FORMAT: legacySdJwtLabel,
+        LEGACY_DISABLE_SIGNATURE_POLICY: "false",
+      }, {
+        id: "legacy-sd-jwt-signature-enabled",
         kind: "legacy",
         required: false,
       }),
@@ -81,6 +97,8 @@ async function main() {
       checkRequestUriPost,
       requireRequestUriPost,
       enableLegacySdJwtProbe,
+      enableLegacySdJwtSignatureProbe,
+      requireLegacySdJwtProbe,
     },
     results,
     mandatoryFailures: mandatoryFailures.map(({ id, status, exitCode, error }) => ({
