@@ -451,6 +451,22 @@ Important note about the signed-request artifact:
 - if verifier2 is running with its default `clientId: "verifier2"` profile, the wallet correctly produces a KB-JWT audience for `x509_san_dns:verifier.example.com`, and verifier2 correctly rejects that as an audience mismatch
 - that is a harness/config alignment issue, not a production bug in this branch
 
+### PR1 verifier2 format matrix finding (`jwt_vc_json`)
+In the PR1 matrix verification run, verifier2 sessions using `dc+sd-jwt` succeeded across all implemented request shapes (`direct`, `request_uri_get`, `request_object_unsigned`, `request_object_signed`), while verifier2 sessions using `jwt_vc_json` failed across those same shapes.
+
+Why this matters:
+- this pattern indicates request-shape compatibility itself is working in PR1
+- the failing behavior is format-specific (`jwt_vc_json`) rather than shape-specific
+
+What is proven vs not proven:
+- proven: PR1 request resolution/routing supports the intended OpenID4VP 1.0 shapes
+- proven: the `jwt_vc_json` verifier2 end-to-end path currently fails in this stack
+- not proven: that the exact same verifier2 wallet flow fails on `main`, because `main` does not include this verifier2-compatible wallet integration path
+
+Current technical reading:
+- this is most likely a pre-existing stack/integration gap surfaced by PR1 enablement, not a PR1 request-shape regression
+- PR1 can still be reviewed on its own stated scope (OpenID4VP 1.0 request compatibility and draft backward compatibility), while `jwt_vc_json` verifier2 E2E should be tracked as a separate follow-up
+
 ## Manual Verification Guide
 
 ### Goal

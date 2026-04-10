@@ -80,6 +80,12 @@
   - [https://github.com/walt-id/waltid-identity/issues/1272](https://github.com/walt-id/waltid-identity/issues/1272)
   - [https://github.com/walt-id/waltid-identity/issues/779](https://github.com/walt-id/waltid-identity/issues/779)
 
+## Known PR1 Verification Finding (`jwt_vc_json`)
+- In verifier2 matrix runs on PR1, `dc+sd-jwt` succeeds across implemented request shapes, while `jwt_vc_json` fails across those same shapes.
+- This points to a format-specific integration gap, not to request-shape support being broken.
+- `main` does not expose the same verifier2-compatible wallet path, so the exact failure cannot be compared one-to-one there.
+- Treat this as an out-of-scope follow-up for PR1 unless the PR scope is explicitly expanded to include fixing verifier2 `jwt_vc_json` end-to-end behavior.
+
 ## Delivery Strategy
 - Docs branch:
   - `docs/oid4vp-steering`
