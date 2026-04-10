@@ -467,6 +467,31 @@ Current technical reading:
 - this is most likely a pre-existing stack/integration gap surfaced by PR1 enablement, not a PR1 request-shape regression
 - PR1 can still be reviewed on its own stated scope (OpenID4VP 1.0 request compatibility and draft backward compatibility), while `jwt_vc_json` verifier2 E2E should be tracked as a separate follow-up
 
+### PR1 vs PR5 holder-binding A/B verification
+To explicitly verify what was split out into PR5 (`feat/wallet-openid4vp-holder-binding-fix`), we ran the same focused harness matrix against PR1 and PR5 with:
+- format: `dc+sd-jwt`
+- request shapes: `direct`, `request_object_signed`
+- plus legacy SD-JWT portal probes (signature disabled / enabled) as optional scenarios
+
+Run summaries:
+- PR1 baseline:
+  - `/Users/szipe/.waltid-playwright-artifacts/wallet-openid4vp-v1-hb2--pr1-matrix-summary--2026-04-10T20-13-40.650Z/run-summary.json`
+- PR5 (holder-binding fix):
+  - `/Users/szipe/.waltid-playwright-artifacts/wallet-openid4vp-holder-binding-fix-hb2--pr1-matrix-summary--2026-04-10T20-21-47.940Z/run-summary.json`
+
+Outcome delta:
+- `legacy-jwt-w3c`: `SUCCESSFUL` on both
+- `verifier2-dc+sd-jwt-direct`: `FAILED` on PR1, `SUCCESSFUL` on PR5
+- `verifier2-dc+sd-jwt-request_object_signed`: `FAILED` on PR1, `SUCCESSFUL` on PR5
+
+Interpretation:
+- this confirms the SD-JWT holder-binding verifier2 failure is present on PR1 and fixed by PR5
+- it also confirms the split is meaningful and technically clean: PR5 carries behavior not present in PR1
+
+Harness caveat (important):
+- both optional legacy SD-JWT portal probe scenarios failed on both branches because the legacy verifier portal dropdown did not expose `SD-JWT VC` in that environment
+- those legacy probe failures are UI/harness availability limitations and are not the signal for the PR1-vs-PR5 holder-binding conclusion
+
 ## Manual Verification Guide
 
 ### Goal

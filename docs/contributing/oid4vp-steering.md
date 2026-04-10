@@ -86,6 +86,13 @@
 - `main` does not expose the same verifier2-compatible wallet path, so the exact failure cannot be compared one-to-one there.
 - Treat this as an out-of-scope follow-up for PR1 unless the PR scope is explicitly expanded to include fixing verifier2 `jwt_vc_json` end-to-end behavior.
 
+## Known A/B Verification Finding (PR1 vs PR5 holder binding)
+- Focused A/B harness runs (`dc+sd-jwt`, request shapes `direct` + `request_object_signed`) show:
+  - PR1 (`feat/wallet-openid4vp-v1`): verifier2 `dc+sd-jwt` scenarios fail
+  - PR5 (`feat/wallet-openid4vp-holder-binding-fix`): the same scenarios succeed
+- This is the expected split behavior and confirms PR5 contains the holder-binding fix that is intentionally out of PR1 scope.
+- Optional legacy SD-JWT portal probes were also added, but in the measured environment the verifier portal did not expose the `SD-JWT VC` option, so those probe failures are not used as branch-delta evidence.
+
 ## Delivery Strategy
 - Docs branch:
   - `docs/oid4vp-steering`
