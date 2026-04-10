@@ -3,10 +3,14 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "record:smoke-main": "node record-main-smoke.mjs",
-    "record:base": "node record-openid4vp-base.mjs",
-    "record:shape": "node record-openid4vp-shape.mjs",
-    "record:transaction": "node record-transaction-demo.mjs"
+    "record:scenario:legacy": "node record-portal-legacy.mjs",
+    "record:scenario:verifier2": "node record-portal-verifier2.mjs",
+    "record:suite:main": "node record-suite-main.mjs",
+    "record:suite:pr1": "node record-suite-pr1.mjs",
+    "record:suite:pr2": "node record-suite-pr2.mjs",
+    "record:smoke-main": "npm run record:suite:main",
+    "record:base": "npm run record:scenario:legacy",
+    "record:transaction": "npm run record:scenario:verifier2"
   },
   "dependencies": {
     "playwright": "^1.59.1"

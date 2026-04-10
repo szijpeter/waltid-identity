@@ -1,0 +1,42 @@
+{
+	auto_https off
+	admin off
+}
+
+:{$WALLET_BACKEND_PORT} {
+	reverse_proxy http://wallet-api:{$WALLET_BACKEND_PORT}
+}
+
+:{$ISSUER_API_PORT} {
+	reverse_proxy http://issuer-api:{$ISSUER_API_PORT}
+}
+
+:{$VERIFIER_API_PORT} {
+	reverse_proxy http://verifier-api:{$VERIFIER_API_PORT}
+}
+
+:{$VERIFIER_API2_PORT} {
+	reverse_proxy http://verifier-api2:{$VERIFIER_API2_PORT}
+}
+
+:{$DEMO_WALLET_FRONTEND_PORT} {
+	reverse_proxy http://waltid-demo-wallet:{$DEMO_WALLET_FRONTEND_PORT}
+	reverse_proxy /wallet-api/* http://wallet-api:{$WALLET_BACKEND_PORT}
+}
+
+:{$DEV_WALLET_FRONTEND_PORT} {
+	reverse_proxy http://waltid-dev-wallet:{$DEV_WALLET_FRONTEND_PORT}
+	reverse_proxy /wallet-api/* http://wallet-api:{$WALLET_BACKEND_PORT}
+}
+
+:{$WEB_PORTAL_PORT} {
+	reverse_proxy http://web-portal:{$WEB_PORTAL_PORT}
+}
+
+:{$VC_REPO_PORT} {
+	reverse_proxy http://vc-repo:{$VC_REPO_PORT}
+}
+
+:{$PG_ADMIN_PORT} {
+	reverse_proxy http://phpmyadmin:{$PG_ADMIN_PORT}
+}

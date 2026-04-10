@@ -1,36 +1,45 @@
 # Playwright OID4VP Harness
 
-This branch stores local verification tooling that was used to validate the OpenID4VP 1.0 wallet work and the transaction-data follow-up.
+This harness records full browser-driven OpenID4VP sessions with both sides captured:
 
-It is intentionally kept outside the product branches and is not meant to be merged as-is.
+- verifier portal browser session
+- wallet portal browser session
 
-## What it covers
+It is intentionally kept outside product branches and is not meant to be merged directly.
 
-- base OpenID4VP 1.0 `request_uri` flow
-- alternate request shapes:
-  - direct query parameters
-  - inline `request` object
-  - signed `request` object
-- transaction-data flow:
-  - `dc+sd-jwt`
-  - `mso_mdoc`
-- main-compatible smoke flow:
-  - wallet register/login
-  - DID creation
-  - credential issue + claim
-  - verifier2 session creation
+Run the target stack from the branch you want to validate (`main`, PR1, PR2, etc.). The harness only drives browser/API flows; it does not force a specific product branch revision.
 
-## Assumptions
+Bring up the local stack with the harness override:
 
-- local stack is running
-- default local ports:
-  - demo wallet: `http://localhost:7101`
-  - wallet-api: `http://localhost:7001/wallet-api`
-  - issuer-api: `http://localhost:7002`
-  - verifier2: `http://localhost:7004`
-- scripts target the demo wallet by default
+```bash
+docker compose \
+  -f docker-compose/docker-compose.yaml \
+  -f verification/playwright-oid4vp/docker-compose.override.yaml \
+  up -d --build
+```
 
-The transaction-data script verifies feature-branch behavior. It is expected to be run against a local stack built from the relevant feature branch, not from this verification branch alone.
+## Scenario model
+
+- `legacy` scenario:
+  - verifier portal route: `/verify`
+  - backend: legacy verifier (`NEXT_PUBLIC_VERIFIER`, default `http://localhost:7003`)
+  - main-compatible baseline
+- `verifier2` scenario:
+  - verifier portal route: `/verify/transaction`
+  - backend: verifier2 (`NEXT_PUBLIC_VERIFIER2`, default `http://localhost:7004`)
+  - format selectable with `PRESENTATION_FORMAT=dc+sd-jwt|mso_mdoc`
+
+## Branch-oriented suites
+
+- `main` suite:
+  - runs legacy scenario only
+- `pr1` suite:
+  - runs legacy scenario
+  - runs verifier2 scenario (`dc+sd-jwt`)
+  - optionally runs verifier2 `mso_mdoc` when `INCLUDE_MDOC=true`
+- `pr2` suite:
+  - same as `pr1`
+  - artifact branch tag defaults to `transaction-data-support`
 
 ## Install
 
@@ -43,60 +52,85 @@ npx playwright install chromium
 ## Run
 
 ```bash
-npm run record:base
-npm run record:shape -- --shape=direct
-npm run record:shape -- --shape=request
-npm run record:shape -- --shape=signed-request
-npm run record:transaction
-PRESENTATION_FORMAT=mso_mdoc npm run record:transaction
-npm run record:smoke-main
+npm run record:scenario:legacy
+npm run record:scenario:verifier2
+PRESENTATION_FORMAT=mso_mdoc npm run record:scenario:verifier2
+
+npm run record:suite:main
+npm run record:suite:pr1
+npm run record:suite:pr2
+INCLUDE_MDOC=true npm run record:suite:pr1
 ```
+
+Compatibility aliases:
+
+```bash
+npm run record:smoke-main
+npm run record:base
+npm run record:transaction
+```
+
+## Evidence output
 
 Artifacts are written to:
 
 ```text
-$HOME/.waltid-playwright-artifacts/<run-name>-<timestamp>/
+$HOME/.waltid-playwright-artifacts/<branch-tag>--<scenario>--<timestamp>/
 ```
 
-You can override the output root with `PLAYWRIGHT_ARTIFACTS_DIR`.
+Examples:
+- `main--legacy-verifier-portal--...`
+- `wallet-openid4vp-v1--verifier2-portal-dc-sd-jwt--...`
+- `transaction-data-support--verifier2-portal-mso-mdoc--...`
 
-Each run now stores both sides:
-- wallet evidence:
-  - screenshots
-  - browser videos
+Each run contains:
+
 - verifier evidence:
-  - `verifier-session-info-{initial|final}.json`
-  - `verifier-request-{initial|final}.txt`
-  - `verifier-request-{initial|final}.meta.json`
-  - `verifier-summary-{initial|final}.html`
-  - `verifier-summary-{initial|final}.png`
+  - `screenshots/verifier/*.png`
+  - `videos/verifier/*.webm`
+- wallet evidence:
+  - `screenshots/wallet/*.png`
+  - `videos/wallet/*.webm`
+- `run-metadata.json`
+
+The run flow now explicitly verifies wallet credential presence via wallet-api before the presentation step.
+
+## Required local stack behavior
+
+- start services from the branch under test (especially portal and wallet-api)
+- keep verifier and verifier2 ports distinct:
+  - `7303 -> verifier-api` (direct service port)
+  - `7304 -> verifier-api2` (direct service port)
+- wallet, portal, and harness should use `7303/7304` for verifier backends to avoid proxy ambiguity
+- verifier2 `urlPrefix` is override-mounted in this harness so generated request/response URLs also target `7304`
+
+The harness-specific Caddy override in this directory is configured with this separation.
 
 ## Useful environment variables
 
 ```bash
 HEADLESS=true
 SLOW_MO=0
-TIMEOUT_MS=120000
+TIMEOUT_MS=180000
+PLAYWRIGHT_ARTIFACTS_DIR=/absolute/path/for/artifacts
+
+PORTAL_BASE_URL=http://localhost:7102
 WALLET_BASE_URL=http://localhost:7101
 WALLET_API_BASE_URL=http://localhost:7001/wallet-api
 ISSUER_API_BASE_URL=http://localhost:7002
-VERIFIER2_BASE_URL=http://localhost:7004
+VERIFIER_BASE_URL=http://localhost:7303
+VERIFIER2_BASE_URL=http://localhost:7304
+
+LEGACY_CREDENTIAL_ID=IdentityCredential
+LEGACY_FORMAT=SD-JWT + IETF SD-JWT VC
 PRESENTATION_FORMAT=dc+sd-jwt
-PLAYWRIGHT_ARTIFACTS_DIR=/absolute/path/for/artifacts
+INCLUDE_MDOC=false
+ARTIFACT_BRANCH_TAG=main
 ```
 
-## Signed request-object note
+## Failure expectations
 
-The signed request-object script assumes verifier2 is configured with a client-id-prefix profile compatible with:
-
-```text
-x509_san_dns:verifier.example.com
-```
-
-If verifier2 is still using the default plain `verifier2` client ID, the signed-request scenario is expected to fail.
-
-## Main-branch sanity expectations
-
-`record:smoke-main` is the baseline check that should remain valid on `main`.
-
-The OpenID4VP 1.0 and transaction scenarios are feature checks and may fail on `main` depending on branch state.
+- On stacks where the legacy verifier endpoint `/openid4vc/verify` is unavailable, `record:scenario:legacy` fails fast with a clear legacy-verifier requirement message.
+- On branches where `/verify/transaction` is not implemented in the portal, `record:scenario:verifier2` fails fast with a clear message.
+- On branches where wallet-api does not yet support OpenID4VP 1.0 request resolution, `record:scenario:verifier2` fails with a clear wallet compatibility message.
+- `record:suite:main` should remain valid on `main` as long as legacy verifier and wallet are healthy.

@@ -1,20 +1,21 @@
 import fs from "node:fs/promises";
 import path from "node:path";
-import { pathToFileURL } from "node:url";
-import { createPrivateKey, sign as nodeSign } from "node:crypto";
 import { chromium, request as playwrightRequest } from "playwright";
 
 export const defaults = {
+  artifactBranchTag: process.env.ARTIFACT_BRANCH_TAG ?? "unknown-branch",
+  portalBaseUrl: process.env.PORTAL_BASE_URL ?? "http://localhost:7102",
   walletBaseUrl: process.env.WALLET_BASE_URL ?? "http://localhost:7101",
   walletApiBaseUrl: process.env.WALLET_API_BASE_URL ?? "http://localhost:7001/wallet-api",
   issuerApiBaseUrl: process.env.ISSUER_API_BASE_URL ?? "http://localhost:7002",
-  verifier2BaseUrl: process.env.VERIFIER2_BASE_URL ?? "http://localhost:7004",
+  verifierBaseUrl: process.env.VERIFIER_BASE_URL ?? "http://localhost:7303",
+  verifier2BaseUrl: process.env.VERIFIER2_BASE_URL ?? "http://localhost:7304",
   artifactsBaseDir:
     process.env.PLAYWRIGHT_ARTIFACTS_DIR ??
     path.join(process.env.HOME ?? process.cwd(), ".waltid-playwright-artifacts"),
   headless: envBool("HEADLESS", false),
   slowMo: Number(process.env.SLOW_MO ?? 250),
-  timeoutMs: Number(process.env.TIMEOUT_MS ?? 120000),
+  timeoutMs: Number(process.env.TIMEOUT_MS ?? 180000),
 };
 
 export const issuerKey = {
@@ -34,7 +35,7 @@ export const issuerDid =
 export const sdJwtIssuancePayload = {
   issuerKey,
   issuerDid,
-  credentialConfigurationId: "identity_credential_vc+sd-jwt",
+  credentialConfigurationId: "IdentityCredential_vc+sd-jwt",
   credentialData: {
     given_name: "John",
     family_name: "Doe",
@@ -95,19 +96,6 @@ export const mdocIssuancePayload = {
   ],
 };
 
-const verifierRequestObjectKey = {
-  kty: "EC",
-  d: "AEb4k1BeTR9xt2NxYZggdzkFLLUkhyyWvyUOq3qSiwA",
-  crv: "P-256",
-  kid: "_nd-T2YRYLSmuKkJZlRI641zrCIJLTpiHeqMwXuvdug",
-  x: "G_TgBc0BkmMipiQ_6gkamIn3mmp7hcTrZuyrLTmknP0",
-  y: "VkRMZdXYXSMff5AJLrnHiN0x5MV6u_8vrAcytGUe4z4",
-};
-
-const verifierRequestObjectX5c = [
-  "MIIBVzCB/aADAgECAggNKZAvUrtimzAKBggqhkjOPQQDAjAfMR0wGwYDVQQDDBR2ZXJpZmllci5leGFtcGxlLmNvbTAeFw0yNTEwMTQwNjI0MjBaFw0yNjEwMTQwNjI0MjBaMB8xHTAbBgNVBAMMFHZlcmlmaWVyLmV4YW1wbGUuY29tMFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEG/TgBc0BkmMipiQ/6gkamIn3mmp7hcTrZuyrLTmknP1WRExl1dhdIx9/kAkuuceI3THkxXq7/y+sBzK0ZR7jPqMjMCEwHwYDVR0RBBgwFoIUdmVyaWZpZXIuZXhhbXBsZS5jb20wCgYIKoZIzj0EAwIDSQAwRgIhAOu0RGM6BjVQUepeLBogw+ZD3MQ9vFppbPIGMPjtn/qdAiEAttfdfyXHfzJ2tr+Pczyckzv3NlM43461cvP96sIzOQA="
-];
-
 export function envBool(name, fallback) {
   const value = process.env[name];
   if (value == null) return fallback;
@@ -115,30 +103,35 @@ export function envBool(name, fallback) {
 }
 
 export function timestamp() {
-  return new Date().toISOString().replace(/[:]/g, "-");
+  return new Date().toISOString().replaceAll(":", "-");
 }
 
 export async function makeArtifactDir(prefix, config = defaults) {
-  const dir = path.join(config.artifactsBaseDir, `${prefix}-${timestamp()}`);
-  await fs.mkdir(path.join(dir, "screenshots"), { recursive: true });
-  await fs.mkdir(path.join(dir, "videos"), { recursive: true });
+  const scenarioSlug = slugify(prefix);
+  const branchSlug = slugify(config.artifactBranchTag);
+  const dir = path.join(config.artifactsBaseDir, `${branchSlug}--${scenarioSlug}--${timestamp()}`);
+  await fs.mkdir(path.join(dir, "screenshots", "wallet"), { recursive: true });
+  await fs.mkdir(path.join(dir, "screenshots", "verifier"), { recursive: true });
+  await fs.mkdir(path.join(dir, "videos", "wallet"), { recursive: true });
+  await fs.mkdir(path.join(dir, "videos", "verifier"), { recursive: true });
   return dir;
 }
 
-export async function launchBrowserContext(artifactDir, config = defaults) {
+export async function launchBrowserContext(artifactDir, actor, config = defaults) {
   const browser = await chromium.launch({
     headless: config.headless,
     slowMo: config.slowMo,
   });
   const context = await browser.newContext({
+    viewport: { width: 1440, height: 1024 },
     recordVideo: {
-      dir: path.join(artifactDir, "videos"),
+      dir: path.join(artifactDir, "videos", actor),
       size: { width: 1440, height: 1024 },
     },
   });
   const page = await context.newPage();
   page.setDefaultTimeout(config.timeoutMs);
-  return { browser, context, page };
+  return { actor, browser, context, page };
 }
 
 export async function apiContext() {
@@ -251,189 +244,43 @@ export async function claimOffer(api, walletId, did, offerUrl, config = defaults
   return response.json();
 }
 
-export function buildSdJwtCredentialQuery(issuerApiBaseUrl) {
-  return {
-    id: "payment_credential",
-    format: "dc+sd-jwt",
-    meta: {
-      vct_values: [`${issuerApiBaseUrl}/identity_credential`],
-    },
-    claims: [
-      { path: ["given_name"] },
-      { path: ["family_name"] },
-      { path: ["address", "street_address"] },
-    ],
-    require_cryptographic_holder_binding: true,
-  };
-}
-
-export function buildMdocCredentialQuery() {
-  return {
-    id: "payment_credential",
-    format: "mso_mdoc",
-    meta: {
-      doctype_value: "org.iso.18013.5.1.mDL",
-    },
-    claims: [
-      { path: ["org.iso.18013.5.1", "given_name"] },
-      { path: ["org.iso.18013.5.1", "family_name"] },
-      { path: ["org.iso.18013.5.1", "issuing_country"] },
-    ],
-    require_cryptographic_holder_binding: true,
-  };
-}
-
-export async function createVerificationSession(api, setup, config = defaults) {
-  const response = await expectOk(
-    await api.post(`${config.verifier2BaseUrl}/verification-session/create`, {
-      data: setup,
-    }),
-    "create verification session",
-  );
-  return normalizeSessionUrls(await response.json(), config);
-}
-
-export async function fetchSessionRequest(api, sessionId, config = defaults) {
-  const response = await expectOk(
-    await api.get(`${config.verifier2BaseUrl}/verification-session/${sessionId}/request`),
-    "fetch verification request",
-  );
-  const contentType = response.headers()["content-type"] ?? "";
-  const body = await response.text();
-  return {
-    contentType,
-    body: rewriteVerifier2Port(body, config),
-  };
-}
-
-export async function fetchSessionInfo(api, sessionId, config = defaults) {
-  const response = await expectOk(
-    await api.get(`${config.verifier2BaseUrl}/verification-session/${sessionId}/info`),
-    "fetch session info",
-  );
-  return response.json();
-}
-
-export async function recordVerifierArtifacts(
+export async function waitForWalletCredentials(
   api,
-  sessionId,
-  artifactDir,
+  walletId,
+  minCount = 1,
   config = defaults,
-  phase = "current",
 ) {
-  const sessionInfo = await fetchSessionInfo(api, sessionId, config);
-  await fs.writeFile(
-    path.join(artifactDir, `verifier-session-info-${phase}.json`),
-    JSON.stringify(sessionInfo, null, 2),
-    "utf8",
-  );
-
-  const requestSnapshot = await fetchSessionRequest(api, sessionId, config);
-  await fs.writeFile(
-    path.join(artifactDir, `verifier-request-${phase}.txt`),
-    requestSnapshot.body,
-    "utf8",
-  );
-  await fs.writeFile(
-    path.join(artifactDir, `verifier-request-${phase}.meta.json`),
-    JSON.stringify({ contentType: requestSnapshot.contentType }, null, 2),
-    "utf8",
-  );
-
-  return { sessionInfo, requestSnapshot };
-}
-
-export async function saveVerifierSummaryScreenshot(
-  context,
-  sessionId,
-  sessionInfo,
-  requestSnapshot,
-  artifactDir,
-  phase = "current",
-) {
-  const summaryPath = path.join(artifactDir, `verifier-summary-${phase}.html`);
-  const html = buildVerifierSummaryHtml(sessionId, sessionInfo, requestSnapshot);
-  await fs.writeFile(summaryPath, html, "utf8");
-
-  const page = await context.newPage();
-  await page.goto(pathToFileURL(summaryPath).toString(), { waitUntil: "networkidle" });
-  await saveScreenshot(page, artifactDir, `verifier-summary-${phase}.png`);
-  await page.close();
-}
-
-export async function waitForTerminalSessionStatus(api, sessionId, config = defaults) {
   const deadline = Date.now() + config.timeoutMs;
   while (Date.now() < deadline) {
-    const info = await fetchSessionInfo(api, sessionId, config);
-    if (["SUCCESSFUL", "FAILED", "COMPLETED"].includes(info.status)) {
-      return info;
+    const response = await expectOk(
+      await api.get(`${config.walletApiBaseUrl}/wallet/${walletId}/credentials`),
+      "list wallet credentials",
+    );
+    const payload = await response.json();
+    if (Array.isArray(payload) && payload.length >= minCount) {
+      return payload;
     }
-    await sleep(1500);
+    await sleep(1000);
   }
-  throw new Error(`Timed out waiting for verifier2 session ${sessionId}`);
+  throw new Error(`Timed out waiting for wallet ${walletId} to contain at least ${minCount} credential(s).`);
 }
 
-export function buildLaunchUrl(walletBaseUrl, walletId, requestUrl) {
-  return `${walletBaseUrl}/wallet/${walletId}/exchange/presentation?request=${encodeBase64Url(requestUrl)}`;
+export function buildWalletInitiatePresentationUrl(walletBaseUrl, requestUrl) {
+  return `${walletBaseUrl}/api/siop/initiatePresentation${requestUrl.substring(requestUrl.indexOf("?"))}`;
 }
 
-export function encodeBase64Url(value) {
-  return Buffer.from(value, "utf8").toString("base64url");
-}
-
-export function makeUnsignedRequestObject(requestPayload) {
-  const header = encodeJsonBase64Url({ alg: "none", typ: "oauth-authz-req+jwt" });
-  const payload = encodeJsonBase64Url(requestPayload);
-  return `${header}.${payload}.`;
-}
-
-export function makeSignedRequestObject(requestPayload, clientId = "x509_san_dns:verifier.example.com") {
-  const header = {
-    alg: "ES256",
-    typ: "oauth-authz-req+jwt",
-    kid: verifierRequestObjectKey.kid,
-    x5c: verifierRequestObjectX5c,
-  };
-  const payload = {
-    ...requestPayload,
-    client_id: clientId,
-  };
-  const signingInput = `${encodeJsonBase64Url(header)}.${encodeJsonBase64Url(payload)}`;
-  const signature = nodeSign(
-    "sha256",
-    Buffer.from(signingInput),
-    {
-      key: createPrivateKey({
-        key: {
-          kty: "EC",
-          crv: "P-256",
-          d: verifierRequestObjectKey.d,
-          x: verifierRequestObjectKey.x,
-          y: verifierRequestObjectKey.y,
-        },
-        format: "jwk",
-      }),
-      dsaEncoding: "ieee-p1363",
-    },
-  );
-  return `${signingInput}.${signature.toString("base64url")}`;
-}
-
-export function requestPayloadToUrl(requestPayload) {
-  const url = new URL("openid4vp://authorize");
-  for (const [key, value] of Object.entries(normalizeRequestPayload(requestPayload, defaults))) {
-    if (value == null) continue;
-    url.searchParams.append(
-      key,
-      typeof value === "string" ? value : JSON.stringify(value),
+export async function openAndPresent(page, { expectTransactionDetails = false } = {}) {
+  try {
+    await page.locator("h1").filter({ hasText: /Presentation Request/i }).first().waitFor({
+      timeout: 15000,
+    });
+  } catch {
+    const urlPreview = page.url().length > 240 ? `${page.url().slice(0, 240)}...` : page.url();
+    const bodyText = (await page.locator("body").innerText()).slice(0, 600).replaceAll(/\s+/g, " ");
+    throw new Error(
+      `Wallet presentation page did not load. This usually means wallet-api could not resolve the request. Current URL: ${urlPreview} Body snippet: ${bodyText}`,
     );
   }
-  return url.toString();
-}
-
-export async function openAndPresent(page, launchUrl, { expectTransactionDetails = false } = {}) {
-  await page.goto(launchUrl, { waitUntil: "networkidle" });
-  await page.locator("h1").filter({ hasText: "Presentation Request" }).waitFor();
   if (expectTransactionDetails) {
     await page.locator("text=Transaction details").waitFor();
   }
@@ -441,26 +288,86 @@ export async function openAndPresent(page, launchUrl, { expectTransactionDetails
   if (await disclosureCheckbox.count()) {
     await disclosureCheckbox.check();
   }
-  await page.getByRole("button", { name: /Authorize|Disclose/ }).last().click();
+  await page.getByRole("button", { name: /Authorize|Disclose|Present/i }).last().click();
+  await page.waitForLoadState("networkidle");
 }
 
-export async function saveScreenshot(page, artifactDir, name) {
-  const target = path.join(artifactDir, "screenshots", name);
+export async function saveScreenshot(page, artifactDir, actor, name) {
+  await scrollToTop(page);
+  const target = path.join(artifactDir, "screenshots", actor, name);
   await page.screenshot({ path: target, fullPage: true });
   return target;
 }
 
-export async function finalizeRun(context, browser, artifactDir, metadata) {
-  const pages = context.pages();
-  for (const page of pages) {
+export async function waitForLegacyVerificationResult(api, state, config = defaults) {
+  const deadline = Date.now() + config.timeoutMs;
+  while (Date.now() < deadline) {
+    const response = await expectOk(
+      await api.get(`${config.verifierBaseUrl}/openid4vc/session/${encodeURIComponent(state)}`),
+      "fetch legacy verifier session",
+    );
+    const payload = await response.json();
+    if (typeof payload.verificationResult === "boolean") {
+      return payload;
+    }
+    await sleep(1000);
+  }
+  throw new Error(`Timed out waiting for legacy verifier session ${state}`);
+}
+
+export async function fetchVerifier2SessionInfo(api, sessionId, config = defaults) {
+  const response = await expectOk(
+    await api.get(`${config.verifier2BaseUrl}/verification-session/${sessionId}/info`),
+    "fetch verifier2 session info",
+  );
+  return response.json();
+}
+
+export async function waitForVerifier2TerminalSessionStatus(api, sessionId, config = defaults) {
+  const deadline = Date.now() + config.timeoutMs;
+  while (Date.now() < deadline) {
+    const info = await fetchVerifier2SessionInfo(api, sessionId, config);
+    if (["SUCCESSFUL", "FAILED", "COMPLETED"].includes(info.status)) {
+      return info;
+    }
+    await sleep(1000);
+  }
+  throw new Error(`Timed out waiting for verifier2 session ${sessionId}`);
+}
+
+export function parseStateFromRequestUrl(requestUrl) {
+  const normalized = requestUrl.replace(/^openid4vp:/, "https:");
+  const parsed = new URL(normalized);
+  return parsed.searchParams.get("state");
+}
+
+export async function ensureTransactionPageAvailable(page, config = defaults) {
+  const response = await page.goto(`${config.portalBaseUrl}/verify/transaction`, {
+    waitUntil: "networkidle",
+  });
+  if (response && response.status() === 404) {
+    throw new Error("Verifier2 portal route /verify/transaction is not available on this branch.");
+  }
+  if (await page.getByText("This page could not be found").count()) {
+    throw new Error("Verifier2 portal route /verify/transaction is not available on this branch.");
+  }
+  await page.locator("h1").filter({ hasText: "Transaction Verification" }).first().waitFor();
+}
+
+export async function finalizeRun(artifactDir, browserContexts, metadata) {
+  for (const item of browserContexts) {
     try {
-      await page.close();
+      await item.context.close();
+    } catch {
+      // ignore
+    }
+    try {
+      await item.browser.close();
     } catch {
       // ignore
     }
   }
-  await context.close();
-  await browser.close();
+
   await fs.writeFile(
     path.join(artifactDir, "run-metadata.json"),
     JSON.stringify(metadata, null, 2),
@@ -468,105 +375,26 @@ export async function finalizeRun(context, browser, artifactDir, metadata) {
   );
 }
 
-export function attachConsoleLogging(page) {
+export function attachConsoleLogging(page, actor) {
   page.on("console", (message) => {
     if (message.type() === "error") {
-      console.error(`[wallet console:${message.type()}] ${message.text()}`);
+      console.error(`[${actor} console:${message.type()}] ${message.text()}`);
     }
   });
 }
 
-function encodeJsonBase64Url(value) {
-  return Buffer.from(JSON.stringify(value), "utf8").toString("base64url");
+async function scrollToTop(page) {
+  await page.evaluate(() => window.scrollTo(0, 0));
+}
+
+function slugify(value) {
+  return String(value)
+    .trim()
+    .toLowerCase()
+    .replaceAll(/[^a-z0-9]+/g, "-")
+    .replaceAll(/^-+|-+$/g, "");
 }
 
 function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
-}
-
-function normalizeSessionUrls(session, config) {
-  return {
-    ...session,
-    bootstrapAuthorizationRequestUrl: session.bootstrapAuthorizationRequestUrl
-      ? rewriteVerifier2Port(session.bootstrapAuthorizationRequestUrl, config)
-      : session.bootstrapAuthorizationRequestUrl,
-    fullAuthorizationRequestUrl: session.fullAuthorizationRequestUrl
-      ? rewriteVerifier2Port(session.fullAuthorizationRequestUrl, config)
-      : session.fullAuthorizationRequestUrl,
-  };
-}
-
-function normalizeRequestPayload(requestPayload, config) {
-  return Object.fromEntries(
-    Object.entries(requestPayload).map(([key, value]) => {
-      if ((key === "request_uri" || key === "response_uri") && typeof value === "string") {
-        return [key, rewriteVerifier2Port(value, config)];
-      }
-      return [key, value];
-    }),
-  );
-}
-
-function rewriteVerifier2Port(value, config) {
-  const encodedVerifier2BaseUrl = encodeURIComponent(config.verifier2BaseUrl);
-  return value
-    .replaceAll("http://localhost:7003", config.verifier2BaseUrl)
-    .replaceAll("http%3A%2F%2Flocalhost%3A7003", encodedVerifier2BaseUrl);
-}
-
-function buildVerifierSummaryHtml(sessionId, sessionInfo, requestSnapshot) {
-  const status = escapeHtml(String(sessionInfo?.status ?? "UNKNOWN"));
-  const attempted = escapeHtml(String(sessionInfo?.attempted ?? "n/a"));
-  const requestMode = escapeHtml(String(sessionInfo?.requestMode ?? "n/a"));
-  const responseMode = escapeHtml(String(sessionInfo?.authorizationRequest?.response_mode ?? "n/a"));
-  const contentType = escapeHtml(String(requestSnapshot?.contentType ?? "n/a"));
-  const sessionJson = escapeHtml(JSON.stringify(sessionInfo, null, 2));
-  const requestText = escapeHtml(requestSnapshot?.body ?? "");
-  return `<!doctype html>
-<html>
-<head>
-  <meta charset="utf-8" />
-  <title>Verifier Summary ${escapeHtml(sessionId)}</title>
-  <style>
-    body { font-family: ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; margin: 0; background: #f4f6f8; color: #0f172a; }
-    .wrap { max-width: 1080px; margin: 0 auto; padding: 28px; }
-    .card { background: #fff; border-radius: 16px; box-shadow: 0 8px 28px rgba(2, 6, 23, 0.08); padding: 20px; margin-bottom: 16px; }
-    h1 { margin: 0 0 12px; font-size: 28px; }
-    h2 { margin: 0 0 10px; font-size: 18px; }
-    .meta { display: grid; grid-template-columns: repeat(3, minmax(180px, 1fr)); gap: 10px; margin-top: 10px; }
-    .pill { background: #eef2f6; border-radius: 10px; padding: 10px 12px; font-size: 13px; }
-    .k { color: #475569; font-size: 12px; display: block; margin-bottom: 3px; text-transform: uppercase; letter-spacing: 0.03em; }
-    pre { margin: 0; white-space: pre-wrap; word-break: break-word; background: #0b1220; color: #d6e0ff; border-radius: 12px; padding: 14px; font-size: 12px; line-height: 1.45; }
-  </style>
-</head>
-<body>
-  <div class="wrap">
-    <div class="card">
-      <h1>Verifier Session ${escapeHtml(sessionId)}</h1>
-      <div class="meta">
-        <div class="pill"><span class="k">Status</span>${status}</div>
-        <div class="pill"><span class="k">Attempted</span>${attempted}</div>
-        <div class="pill"><span class="k">Request mode</span>${requestMode}</div>
-        <div class="pill"><span class="k">Response mode</span>${responseMode}</div>
-        <div class="pill"><span class="k">Request content type</span>${contentType}</div>
-      </div>
-    </div>
-    <div class="card">
-      <h2>Session Info JSON</h2>
-      <pre>${sessionJson}</pre>
-    </div>
-    <div class="card">
-      <h2>Request Snapshot</h2>
-      <pre>${requestText}</pre>
-    </div>
-  </div>
-</body>
-</html>`;
-}
-
-function escapeHtml(value) {
-  return String(value)
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;");
 }

@@ -1,13 +1,21 @@
 services:
-  wallet-api:
-    image: waltid/wallet-api:stable
+  caddy:
+    volumes:
+      - ../verification/playwright-oid4vp/Caddyfile:/etc/caddy/Caddyfile
+  verifier-api:
+    environment:
+      VERIFIER_API_PORT: "7303"
+    ports:
+      - "7303:7303"
+    build:
+      context: ../
+      dockerfile: waltid-services/waltid-verifier-api/Dockerfile
   verifier-api2:
-    image: waltid/verifier-api2:stable
-  issuer-api:
-    image: waltid/issuer-api:stable
-  waltid-demo-wallet:
-    image: waltid/waltid-demo-wallet:stable
-  waltid-dev-wallet:
-    image: waltid/waltid-dev-wallet:stable
+    ports:
+      - "7304:7004"
+    volumes:
+      - ../verification/playwright-oid4vp/verifier-api2/verifier-service.conf:/waltid-verifier-api2/config/verifier-service.conf
   web-portal:
-    image: waltid/portal:stable
+    environment:
+      NEXT_PUBLIC_VERIFIER: "http://$SERVICE_HOST:7303"
+      NEXT_PUBLIC_VERIFIER2: "http://$SERVICE_HOST:7304"
