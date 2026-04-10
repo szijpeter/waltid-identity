@@ -49,8 +49,10 @@ PRESENTATION_FORMAT=mso_mdoc npm run record:transaction
 Artifacts are written to:
 
 ```text
-verification/playwright-oid4vp/artifacts/<run-name>-<timestamp>/
+$HOME/.waltid-playwright-artifacts/<run-name>-<timestamp>/
 ```
+
+You can override the output root with `PLAYWRIGHT_ARTIFACTS_DIR`.
 
 ## Useful environment variables
 
@@ -63,6 +65,7 @@ WALLET_API_BASE_URL=http://localhost:7001/wallet-api
 ISSUER_API_BASE_URL=http://localhost:7002
 VERIFIER2_BASE_URL=http://localhost:7004
 PRESENTATION_FORMAT=dc+sd-jwt
+PLAYWRIGHT_ARTIFACTS_DIR=/absolute/path/for/artifacts
 ```
 
 ## Signed request-object note

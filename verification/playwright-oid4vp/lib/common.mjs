@@ -8,6 +8,9 @@ export const defaults = {
   walletApiBaseUrl: process.env.WALLET_API_BASE_URL ?? "http://localhost:7001/wallet-api",
   issuerApiBaseUrl: process.env.ISSUER_API_BASE_URL ?? "http://localhost:7002",
   verifier2BaseUrl: process.env.VERIFIER2_BASE_URL ?? "http://localhost:7004",
+  artifactsBaseDir:
+    process.env.PLAYWRIGHT_ARTIFACTS_DIR ??
+    path.join(process.env.HOME ?? process.cwd(), ".waltid-playwright-artifacts"),
   headless: envBool("HEADLESS", false),
   slowMo: Number(process.env.SLOW_MO ?? 250),
   timeoutMs: Number(process.env.TIMEOUT_MS ?? 120000),
@@ -114,8 +117,8 @@ export function timestamp() {
   return new Date().toISOString().replace(/[:]/g, "-");
 }
 
-export async function makeArtifactDir(prefix) {
-  const dir = path.join(process.cwd(), "artifacts", `${prefix}-${timestamp()}`);
+export async function makeArtifactDir(prefix, config = defaults) {
+  const dir = path.join(config.artifactsBaseDir, `${prefix}-${timestamp()}`);
   await fs.mkdir(path.join(dir, "screenshots"), { recursive: true });
   await fs.mkdir(path.join(dir, "videos"), { recursive: true });
   return dir;
@@ -185,6 +188,15 @@ export async function registerAndLogin(api, config = defaults) {
     "login account",
   );
   return account;
+}
+
+export async function loginInBrowser(page, account, config = defaults) {
+  await page.goto(config.walletBaseUrl, { waitUntil: "networkidle" });
+  await page.locator("input[name='email']").last().fill(account.email);
+  await page.locator("input[name='password']").last().fill(account.password);
+  await page.getByRole("button", { name: /Sign in/i }).last().click();
+  await page.waitForURL(/\/wallet\//);
+  await page.waitForLoadState("networkidle");
 }
 
 export async function listWallets(api, config = defaults) {
@@ -277,7 +289,7 @@ export async function createVerificationSession(api, setup, config = defaults) {
     }),
     "create verification session",
   );
-  return response.json();
+  return normalizeSessionUrls(await response.json(), config);
 }
 
 export async function fetchSessionRequest(api, sessionId, config = defaults) {
@@ -287,7 +299,10 @@ export async function fetchSessionRequest(api, sessionId, config = defaults) {
   );
   const contentType = response.headers()["content-type"] ?? "";
   const body = await response.text();
-  return { contentType, body };
+  return {
+    contentType,
+    body: rewriteVerifier2Port(body, config),
+  };
 }
 
 export async function fetchSessionInfo(api, sessionId, config = defaults) {
@@ -355,7 +370,7 @@ export function makeSignedRequestObject(requestPayload, clientId = "x509_san_dns
 
 export function requestPayloadToUrl(requestPayload) {
   const url = new URL("openid4vp://authorize");
-  for (const [key, value] of Object.entries(requestPayload)) {
+  for (const [key, value] of Object.entries(normalizeRequestPayload(requestPayload, defaults))) {
     if (value == null) continue;
     url.searchParams.append(
       key,
@@ -371,7 +386,11 @@ export async function openAndPresent(page, launchUrl, { expectTransactionDetails
   if (expectTransactionDetails) {
     await page.locator("text=Transaction details").waitFor();
   }
-  await page.getByRole("button", { name: /Authorize|Disclose/ }).click();
+  const disclosureCheckbox = page.getByRole("checkbox").first();
+  if (await disclosureCheckbox.count()) {
+    await disclosureCheckbox.check();
+  }
+  await page.getByRole("button", { name: /Authorize|Disclose/ }).last().click();
 }
 
 export async function saveScreenshot(page, artifactDir, name) {
@@ -412,4 +431,34 @@ function encodeJsonBase64Url(value) {
 
 function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function normalizeSessionUrls(session, config) {
+  return {
+    ...session,
+    bootstrapAuthorizationRequestUrl: session.bootstrapAuthorizationRequestUrl
+      ? rewriteVerifier2Port(session.bootstrapAuthorizationRequestUrl, config)
+      : session.bootstrapAuthorizationRequestUrl,
+    fullAuthorizationRequestUrl: session.fullAuthorizationRequestUrl
+      ? rewriteVerifier2Port(session.fullAuthorizationRequestUrl, config)
+      : session.fullAuthorizationRequestUrl,
+  };
+}
+
+function normalizeRequestPayload(requestPayload, config) {
+  return Object.fromEntries(
+    Object.entries(requestPayload).map(([key, value]) => {
+      if ((key === "request_uri" || key === "response_uri") && typeof value === "string") {
+        return [key, rewriteVerifier2Port(value, config)];
+      }
+      return [key, value];
+    }),
+  );
+}
+
+function rewriteVerifier2Port(value, config) {
+  const encodedVerifier2BaseUrl = encodeURIComponent(config.verifier2BaseUrl);
+  return value
+    .replaceAll("http://localhost:7003", config.verifier2BaseUrl)
+    .replaceAll("http%3A%2F%2Flocalhost%3A7003", encodedVerifier2BaseUrl);
 }
