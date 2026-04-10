@@ -12,15 +12,15 @@ This file answers two side questions for later manual review:
 
 Useful files:
 - request resolution:
-  - [resolve-authorization-request.ts](https://github.com/openwallet-foundation-labs/oid4vc-ts/blob/5cfbaf51c4630e0bc3408c21870bad7bb5ece114/packages/openid4vp/src/authorization-request/resolve-authorization-request.ts)
+  - [resolve-authorization-request.ts](https://github.com/openwallet-foundation-labs/oid4vc-ts/blob/main/packages/openid4vp/src/authorization-request/resolve-authorization-request.ts)
 - authorization request schema:
-  - [z-authorization-request.ts](https://github.com/openwallet-foundation-labs/oid4vc-ts/blob/5cfbaf51c4630e0bc3408c21870bad7bb5ece114/packages/openid4vp/src/authorization-request/z-authorization-request.ts)
+  - [z-authorization-request.ts](https://github.com/openwallet-foundation-labs/oid4vc-ts/blob/main/packages/openid4vp/src/authorization-request/z-authorization-request.ts)
 - transaction-data schema:
-  - [z-transaction-data.ts](https://github.com/openwallet-foundation-labs/oid4vc-ts/blob/5cfbaf51c4630e0bc3408c21870bad7bb5ece114/packages/openid4vp/src/transaction-data/z-transaction-data.ts)
+  - [z-transaction-data.ts](https://github.com/openwallet-foundation-labs/oid4vc-ts/blob/main/packages/openid4vp/src/transaction-data/z-transaction-data.ts)
 - transaction-data verification:
-  - [verify-transaction-data.ts](https://github.com/openwallet-foundation-labs/oid4vc-ts/blob/5cfbaf51c4630e0bc3408c21870bad7bb5ece114/packages/openid4vp/src/transaction-data/verify-transaction-data.ts)
+  - [verify-transaction-data.ts](https://github.com/openwallet-foundation-labs/oid4vc-ts/blob/main/packages/openid4vp/src/transaction-data/verify-transaction-data.ts)
 - parsing tests:
-  - [parse-authorization-request-params.test.mts](https://github.com/openwallet-foundation-labs/oid4vc-ts/blob/5cfbaf51c4630e0bc3408c21870bad7bb5ece114/packages/openid4vp/src/authorization-request/__tests__/parse-authorization-request-params.test.mts)
+  - [parse-authorization-request-params.test.mts](https://github.com/openwallet-foundation-labs/oid4vc-ts/blob/main/packages/openid4vp/src/authorization-request/__tests__/parse-authorization-request-params.test.mts)
 
 Why it is useful:
 - it is a modern public OpenID4VP implementation with explicit support for:
@@ -38,13 +38,13 @@ How to use it as a comparison:
 
 Useful files:
 - resolver implementation:
-  - [DefaultAuthorizationRequestResolver.kt](https://github.com/eu-digital-identity-wallet/eudi-lib-jvm-openid4vp-kt/blob/affdac723597d9c1f368a72710116ebf675e1915/src/main/kotlin/eu/europa/ec/eudi/openid4vp/internal/request/DefaultAuthorizationRequestResolver.kt)
+  - [DefaultAuthorizationRequestResolver.kt](https://github.com/eu-digital-identity-wallet/eudi-lib-jvm-openid4vp-kt/blob/main/src/main/kotlin/eu/europa/ec/eudi/openid4vp/internal/request/DefaultAuthorizationRequestResolver.kt)
 - public API / request model:
-  - [AuthorizationRequestResolver.kt](https://github.com/eu-digital-identity-wallet/eudi-lib-jvm-openid4vp-kt/blob/affdac723597d9c1f368a72710116ebf675e1915/src/main/kotlin/eu/europa/ec/eudi/openid4vp/AuthorizationRequestResolver.kt)
+  - [AuthorizationRequestResolver.kt](https://github.com/eu-digital-identity-wallet/eudi-lib-jvm-openid4vp-kt/blob/main/src/main/kotlin/eu/europa/ec/eudi/openid4vp/AuthorizationRequestResolver.kt)
 - spec-level constants:
-  - [OpenId4VPSpec.kt](https://github.com/eu-digital-identity-wallet/eudi-lib-jvm-openid4vp-kt/blob/affdac723597d9c1f368a72710116ebf675e1915/src/main/kotlin/eu/europa/ec/eudi/openid4vp/OpenId4VPSpec.kt)
+  - [OpenId4VPSpec.kt](https://github.com/eu-digital-identity-wallet/eudi-lib-jvm-openid4vp-kt/blob/main/src/main/kotlin/eu/europa/ec/eudi/openid4vp/OpenId4VPSpec.kt)
 - README:
-  - [README.md](https://github.com/eu-digital-identity-wallet/eudi-lib-jvm-openid4vp-kt/blob/affdac723597d9c1f368a72710116ebf675e1915/README.md)
+  - [README.md](https://github.com/eu-digital-identity-wallet/eudi-lib-jvm-openid4vp-kt/blob/main/README.md)
 
 Why it is useful:
 - it is another Kotlin OpenID4VP implementation

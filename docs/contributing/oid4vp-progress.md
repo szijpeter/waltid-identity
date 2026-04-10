@@ -22,10 +22,12 @@
 - Current docs branch: `docs/oid4vp-steering`
 - Feature branch 1: `feat/wallet-openid4vp-v1`
 - Feature branch 2: `feat/transaction-data-support`
+- Follow-up branch: `feat/wallet-openid4vp-holder-binding-fix`
 
-## Branch Heads
-- `feat/wallet-openid4vp-v1` at `44e181fc9`
-- `feat/transaction-data-support` at `78fa49e4e`
+## Active Branches
+- `feat/wallet-openid4vp-v1`
+- `feat/transaction-data-support`
+- `feat/wallet-openid4vp-holder-binding-fix`
 
 ## Feature Branch Status
 - `feat/wallet-openid4vp-v1`
@@ -33,21 +35,24 @@
   - fork PR: [https://github.com/szijpeter/waltid-identity/pull/3](https://github.com/szijpeter/waltid-identity/pull/3)
   - current branch evolved through review-driven hardening and cleanup after the initial feature commit
   - latest review-driven hardening also restored legacy draft compatibility for signed request-object flows that still use plain `http` / `https` client IDs
-  - notable commits on top of `origin/main` now include:
-    - `426feec27` `feat: add OpenID4VP wallet request handling`
-    - `117d4a233` `refactor: streamline OpenID4VP presentation handling`
-    - `44e181fc9` `fix: restore legacy draft request object fallback`
+  - key change areas:
+    - OpenID4VP 1.0 request resolution and routing in wallet-api
+    - wallet presentation flow hardening and request-object handling
+    - legacy draft compatibility fallback for signed request-object edge cases
 - `feat/transaction-data-support`
   - pushed to fork and under review
   - fork PR: [https://github.com/szijpeter/waltid-identity/pull/4](https://github.com/szijpeter/waltid-identity/pull/4)
   - PR base is `feat/wallet-openid4vp-v1`
   - branch was restacked onto the current task-1 head after the latest task-1 review round
-  - current task-2-only commits on top of task 1:
-    - `8030f01e7` `feat: add transaction data support`
-    - `51cfd87a0` `fix: tighten transaction data response validation`
-    - `5be450608` `fix: tighten transaction data validation and demo config`
-    - `848818e7c` `fix: tighten transaction data response validation`
-    - `78fa49e4e` `fix: restore transaction data key binding handling after restack`
+  - key change areas:
+    - shared transaction-data parsing and validation utilities
+    - verifier2 transaction-data policy checks for SD-JWT and mdoc
+    - wallet and portal transaction-data UX wiring
+- `feat/wallet-openid4vp-holder-binding-fix`
+  - pushed to fork and under review
+  - fork PR: [https://github.com/szijpeter/waltid-identity/pull/5](https://github.com/szijpeter/waltid-identity/pull/5)
+  - PR base is `feat/wallet-openid4vp-v1`
+  - this branch intentionally carries only the SD-JWT holder-binding interop mitigation that was split out of PR1 scope
 
 ## Commit Separation
 - Docs commits stay on docs branch.

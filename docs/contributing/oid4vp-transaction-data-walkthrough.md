@@ -2,19 +2,11 @@
 
 ## Branch and PR
 - Branch: `feat/transaction-data-support`
-- Current head: `78fa49e4e`
 - Fork PR: [https://github.com/szijpeter/waltid-identity/pull/4](https://github.com/szijpeter/waltid-identity/pull/4)
 - Base branch: `feat/wallet-openid4vp-v1`
 
 ## Current stacked shape
-This branch is currently restacked on top of task 1 at `44e181fc9`.
-
-Current task-2-only commits on top of task 1:
-- `8030f01e7` `feat: add transaction data support`
-- `51cfd87a0` `fix: tighten transaction data response validation`
-- `5be450608` `fix: tighten transaction data validation and demo config`
-- `848818e7c` `fix: tighten transaction data response validation`
-- `78fa49e4e` `fix: restore transaction data key binding handling after restack`
+This branch is stacked on top of task 1 (`feat/wallet-openid4vp-v1`) and contains only the transaction-data-focused feature and hardening changes for task 2.
 
 ## Task and Intent
 The goal of this branch is to complete `transaction_data` support end to end in OSS:
@@ -506,7 +498,7 @@ After restacking the branch onto the latest task-1 head, the following focused v
   :waltid-services:waltid-wallet-api:test --tests 'id.walt.webwallet.service.exchange.OpenId4VpPresentationServiceTest'
 ```
 
-After the final restack onto `44e181fc9`, the broader focused confidence suite used was:
+After the final restack onto the latest PR1 head, the broader focused confidence suite used was:
 
 ```bash
 ./gradlew --no-build-cache --no-daemon \
@@ -516,7 +508,7 @@ After the final restack onto `44e181fc9`, the broader focused confidence suite u
   :waltid-services:waltid-verifier-api2:test --tests 'id.walt.verifier2.sdjwt.IETFSdJwtVcWithDisclosureVerifier2IntegrationTest' --tests 'id.walt.verifier2.mdocs.PidBirthDateIssuerSignedIntegrityReproTest'
 ```
 
-That suite passed on `78fa49e4e`.
+That suite passed on the latest branch head at verification time.
 
 ## Manual Verification Guide
 

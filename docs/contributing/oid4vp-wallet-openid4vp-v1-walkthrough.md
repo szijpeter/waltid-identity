@@ -2,7 +2,6 @@
 
 ## Branch and PR
 - Branch: `feat/wallet-openid4vp-v1`
-- Current head: `44e181fc9`
 - Fork PR: [https://github.com/szijpeter/waltid-identity/pull/3](https://github.com/szijpeter/waltid-identity/pull/3)
 
 ## Task and Intent
@@ -105,7 +104,6 @@ The initial feature implementation was correct in broad shape, but the fork revi
   - only explicitly JSON-encoded values are parsed as JSON
 - signed Request Objects are preserved through resolve and final submit instead of being flattened into loose query parameters
 - wallet event logging now only records actual successful presentations
-- SD-JWT holder binding now uses the credential-bound key for presentation when required (`ac04d1f5b`), instead of always using the fallback DID key
 - the final review pass restored a narrow legacy draft fallback for signed request-object flows that still use plain `http` / `https` client IDs in the old suites, without weakening strict handling of real verifier2/v1 requests
 
 That last point is worth calling out because it reflects the eventual intended layering:
@@ -114,7 +112,7 @@ That last point is worth calling out because it reflects the eventual intended l
 
 SD-JWT note for reviewers:
 - The holder-key-binding failure (`signature_sd-jwt-vc`) seen in some legacy runs is an interop issue in the stack, not a spec-level ban on SD-JWT.
-- The wallet-side binding fix in `ac04d1f5b` addresses one concrete root cause by aligning presentation signing with credential holder binding.
+- The wallet-side binding fix is tracked separately in follow-up branch `feat/wallet-openid4vp-holder-binding-fix` (fork PR [#5](https://github.com/szijpeter/waltid-identity/pull/5)) so PR1 can stay in-scope.
 - Related upstream issue history:
   - [https://github.com/walt-id/waltid-identity/issues/713](https://github.com/walt-id/waltid-identity/issues/713)
   - [https://github.com/walt-id/waltid-identity/issues/1272](https://github.com/walt-id/waltid-identity/issues/1272)
@@ -419,7 +417,7 @@ That separation is intentional so PR 1 stays focused and reviewable.
 ./gradlew --no-build-cache :waltid-services:waltid-wallet-api:test --tests 'id.walt.webwallet.service.exchange.OpenId4VpPresentationServiceTest'
 ```
 
-### Current readiness reruns on branch head `44e181fc9`
+### Current readiness reruns on the latest branch head
 ```bash
 ./gradlew --no-daemon --max-workers=3 --rerun-tasks :waltid-services:waltid-wallet-api:test --tests 'id.walt.webwallet.service.exchange.OpenId4VpPresentationServiceTest'
 ./gradlew --no-daemon --max-workers=3 --rerun-tasks :waltid-services:waltid-integration-tests:test :waltid-services:waltid-e2e-tests:test

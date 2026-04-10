@@ -1,8 +1,9 @@
 # OID4VP PR Notes
 
-## Current Branch Heads
-- `feat/wallet-openid4vp-v1` at `44e181fc9`
-- `feat/transaction-data-support` at `78fa49e4e`
+## Current Branches
+- `feat/wallet-openid4vp-v1`
+- `feat/transaction-data-support`
+- `feat/wallet-openid4vp-holder-binding-fix`
 
 ## Current Fork PRs
 - PR 1: [Add OpenID4VP 1.0 support to wallet-api](https://github.com/szijpeter/waltid-identity/pull/3)
@@ -10,6 +11,9 @@
   - base: `main`
 - PR 2: [Add transaction data support to verifier and wallet flows](https://github.com/szijpeter/waltid-identity/pull/4)
   - branch: `feat/transaction-data-support`
+  - base: `feat/wallet-openid4vp-v1`
+- PR 3 (follow-up): [Fix OpenID4VP holder-bound key selection for SD-JWT presentations](https://github.com/szijpeter/waltid-identity/pull/5)
+  - branch: `feat/wallet-openid4vp-holder-binding-fix`
   - base: `feat/wallet-openid4vp-v1`
 
 ## PR 1 Draft Notes
@@ -27,6 +31,7 @@
 
 ### Exclusions
 - No transaction-data support in this PR.
+- No SD-JWT holder-binding interop fix in this PR (tracked in follow-up PR #5).
 - No steering docs in this PR branch.
 
 ## PR 2 Draft Notes
@@ -40,7 +45,7 @@
 - Add minimal verifier demo flow and wallet authorization UX.
 - Support both `dc+sd-jwt` and `mso_mdoc` transaction-data presentation paths.
 - Align verifier validation with the policy-based direction described in issue `#1583`.
-- Current branch is cleanly restacked on top of the current task-1 head at `44e181fc9`.
+- Current branch remains stacked on top of PR1 (`feat/wallet-openid4vp-v1`).
 - Current branch contains the feature commit plus targeted review-driven hardening commits and one post-restack fix restoring SD-JWT transaction-data key binding hashing.
 
 ### Exclusions

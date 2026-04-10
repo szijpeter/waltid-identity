@@ -74,7 +74,7 @@
 ## Known SD-JWT Interop Note
 - The legacy verifier SD-JWT path can fail on `signature_sd-jwt-vc` with holder key-binding verification errors in some wallet/verifier combinations.
 - This is not a standards limitation of SD-JWT itself; it is an implementation-interoperability risk in the current mainline stack.
-- PR1 commit `ac04d1f5b` addresses one key cause on the wallet side by selecting the holder-bound wallet key for OpenID4VP submissions instead of always using the fallback DID key.
+- That wallet-side mitigation is tracked out of PR1 scope in follow-up branch `feat/wallet-openid4vp-holder-binding-fix` and fork PR [#5](https://github.com/szijpeter/waltid-identity/pull/5), so PR1 can stay focused on OpenID4VP 1.0 wallet integration.
 - Related public issue context:
   - [https://github.com/walt-id/waltid-identity/issues/713](https://github.com/walt-id/waltid-identity/issues/713)
   - [https://github.com/walt-id/waltid-identity/issues/1272](https://github.com/walt-id/waltid-identity/issues/1272)
