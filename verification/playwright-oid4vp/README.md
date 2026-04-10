@@ -24,21 +24,31 @@ docker compose \
   - verifier portal route: `/verify`
   - backend: legacy verifier (`NEXT_PUBLIC_VERIFIER`, default `http://localhost:7003`)
   - main-compatible baseline
-- `verifier2` scenario:
+- `verifier2-portal` scenario:
   - verifier portal route: `/verify/transaction`
   - backend: verifier2 (`NEXT_PUBLIC_VERIFIER2`, default `http://localhost:7004`)
   - format selectable with `PRESENTATION_FORMAT=dc+sd-jwt|mso_mdoc`
+- `verifier2-api` scenario:
+  - no portal dependency
+  - creates verifier2 sessions via `/verification-session/create`
+  - drives wallet presentation with one request shape at a time:
+    - `direct`
+    - `request_uri_get`
+    - `request_object_unsigned`
+    - `request_object_signed`
+    - optional probe: `request_uri_post`
+  - verifier-side evidence is captured from verifier2 session info endpoint pages
 
 ## Branch-oriented suites
 
 - `main` suite:
   - runs legacy scenario only
 - `pr1` suite:
-  - runs legacy scenario
-  - runs verifier2 scenario (`dc+sd-jwt`)
-  - optionally runs verifier2 `mso_mdoc` when `INCLUDE_MDOC=true`
+  - runs legacy scenario (`JWT + W3C VC`) as mandatory backward-compat baseline
+  - runs verifier2 API matrix over request shapes and formats (`dc+sd-jwt`, `jwt_vc_json` by default)
+  - optionally probes `request_uri_method=post` support and records `SKIPPED_UNSUPPORTED` if endpoint-level POST retrieval is not supported
 - `pr2` suite:
-  - same as `pr1`
+  - keeps the portal-based verifier2 transaction flow (`/verify/transaction`)
   - artifact branch tag defaults to `transaction-data-support`
 
 ## Install
@@ -54,12 +64,15 @@ npx playwright install chromium
 ```bash
 npm run record:scenario:legacy
 npm run record:scenario:verifier2
+npm run record:scenario:verifier2-api
 PRESENTATION_FORMAT=mso_mdoc npm run record:scenario:verifier2
 
 npm run record:suite:main
 npm run record:suite:pr1
+npm run record:suite:pr1:matrix
+npm run record:suite:pr1:portal
 npm run record:suite:pr2
-INCLUDE_MDOC=true npm run record:suite:pr1
+INCLUDE_MDOC=true npm run record:suite:pr1:portal
 ```
 
 Compatibility aliases:
@@ -81,6 +94,7 @@ $HOME/.waltid-playwright-artifacts/<branch-tag>--<scenario>--<timestamp>/
 Examples:
 - `main--legacy-verifier-portal--...`
 - `wallet-openid4vp-v1--verifier2-portal-dc-sd-jwt--...`
+- `wallet-openid4vp-v1--verifier2-api-dc-sd-jwt-request-object-signed--...`
 - `transaction-data-support--verifier2-portal-mso-mdoc--...`
 
 Each run contains:
@@ -94,6 +108,9 @@ Each run contains:
 - `run-metadata.json`
 
 The run flow now explicitly verifies wallet credential presence via wallet-api before the presentation step.
+
+The PR1 matrix suite also writes:
+- `$HOME/.waltid-playwright-artifacts/<branch-tag>--pr1-matrix-summary--<timestamp>/run-summary.json`
 
 ## Required local stack behavior
 
@@ -127,6 +144,14 @@ LEGACY_DISABLE_SIGNATURE_POLICY=false
 PRESENTATION_FORMAT=dc+sd-jwt
 INCLUDE_MDOC=false
 ARTIFACT_BRANCH_TAG=main
+
+PR1_MATRIX_FORMATS=dc+sd-jwt,jwt_vc_json
+PR1_REQUEST_SHAPES=direct,request_uri_get,request_object_unsigned,request_object_signed
+OID4VP_REQUEST_SHAPE=direct
+CHECK_REQUEST_URI_POST=true
+REQUIRE_REQUEST_URI_POST=false
+PR1_SIGNED_CLIENT_ID=x509_san_dns:verifier.example.com
+ENABLE_LEGACY_SDJWT_PROBE=false
 ```
 
 ## Failure expectations
@@ -136,3 +161,12 @@ ARTIFACT_BRANCH_TAG=main
 - On branches where `/verify/transaction` is not implemented in the portal, `record:scenario:verifier2` fails fast with a clear message.
 - On branches where wallet-api does not yet support OpenID4VP 1.0 request resolution, `record:scenario:verifier2` fails with a clear wallet compatibility message.
 - `record:suite:main` should remain valid on `main` as long as legacy verifier and wallet are healthy.
+- `record:suite:pr1` fails if any mandatory compatibility scenario fails:
+  - legacy verifier compatibility
+  - verifier2 direct path
+  - verifier2 `request_uri` path
+  - verifier2 inline unsigned request-object path
+  - verifier2 inline signed request-object path
+- `record:suite:pr1` treats `request_uri_method=post` as optional by default:
+  - if verifier2 `/request` POST retrieval is unsupported, the probe is recorded as `SKIPPED_UNSUPPORTED`
+  - set `REQUIRE_REQUEST_URI_POST=true` to make that scenario mandatory

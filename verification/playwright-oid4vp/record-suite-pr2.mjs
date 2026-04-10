@@ -4,7 +4,7 @@ const includeMdoc = ["0", "false", "no"].includes((process.env.INCLUDE_MDOC ?? "
   ? "false"
   : "true";
 
-const result = spawnSync(process.execPath, ["record-suite-pr1.mjs"], {
+const result = spawnSync(process.execPath, ["record-suite-pr1-portal.mjs"], {
   stdio: "inherit",
   env: {
     ...process.env,
@@ -14,5 +14,5 @@ const result = spawnSync(process.execPath, ["record-suite-pr1.mjs"], {
 });
 
 if (result.status !== 0) {
-  throw new Error(`record-suite-pr1.mjs failed with exit code ${result.status ?? "unknown"}`);
+  throw new Error(`record-suite-pr1-portal.mjs failed with exit code ${result.status ?? "unknown"}`);
 }

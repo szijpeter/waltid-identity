@@ -5,8 +5,11 @@
   "scripts": {
     "record:scenario:legacy": "node record-portal-legacy.mjs",
     "record:scenario:verifier2": "node record-portal-verifier2.mjs",
+    "record:scenario:verifier2-api": "node record-verifier2-api.mjs",
     "record:suite:main": "node record-suite-main.mjs",
     "record:suite:pr1": "node record-suite-pr1.mjs",
+    "record:suite:pr1:matrix": "node record-suite-pr1.mjs",
+    "record:suite:pr1:portal": "node record-suite-pr1-portal.mjs",
     "record:suite:pr2": "node record-suite-pr2.mjs",
     "record:smoke-main": "npm run record:suite:main",
     "record:base": "npm run record:scenario:legacy",

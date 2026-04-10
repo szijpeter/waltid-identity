@@ -113,6 +113,8 @@ async function main() {
 
     console.log(`Artifacts saved in ${artifactDir}`);
     console.log(JSON.stringify(metadata, null, 2));
+    console.log(`RUN_STATUS:${metadata.status}`);
+    console.log(`RUN_ARTIFACT_DIR:${artifactDir}`);
     await finalizeRun(artifactDir, [wallet, verifier], metadata);
   } catch (error) {
     const metadata = {
@@ -125,6 +127,8 @@ async function main() {
       presentationFormat,
       error: String(error),
     };
+    console.log(`RUN_STATUS:${metadata.status}`);
+    console.log(`RUN_ARTIFACT_DIR:${artifactDir}`);
     await finalizeRun(artifactDir, [wallet, verifier], metadata);
     throw error;
   } finally {
