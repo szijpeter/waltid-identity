@@ -105,11 +105,19 @@ The initial feature implementation was correct in broad shape, but the fork revi
   - only explicitly JSON-encoded values are parsed as JSON
 - signed Request Objects are preserved through resolve and final submit instead of being flattened into loose query parameters
 - wallet event logging now only records actual successful presentations
+- SD-JWT holder binding now uses the credential-bound key for presentation when required (`ac04d1f5b`), instead of always using the fallback DID key
 - the final review pass restored a narrow legacy draft fallback for signed request-object flows that still use plain `http` / `https` client IDs in the old suites, without weakening strict handling of real verifier2/v1 requests
 
 That last point is worth calling out because it reflects the eventual intended layering:
 - strict v1 requests should still fail hard if request resolution or signed request-object validation fails
 - only the legacy draft compatibility edge gets the fallback
+
+SD-JWT note for reviewers:
+- The holder-key-binding failure (`signature_sd-jwt-vc`) seen in some legacy runs is an interop issue in the stack, not a spec-level ban on SD-JWT.
+- The wallet-side binding fix in `ac04d1f5b` addresses one concrete root cause by aligning presentation signing with credential holder binding.
+- Related upstream issue history:
+  - [https://github.com/walt-id/waltid-identity/issues/713](https://github.com/walt-id/waltid-identity/issues/713)
+  - [https://github.com/walt-id/waltid-identity/issues/1272](https://github.com/walt-id/waltid-identity/issues/1272)
 
 ## File-by-file walkthrough
 

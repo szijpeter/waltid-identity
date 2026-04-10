@@ -71,6 +71,15 @@
 - These files must stay out of docs commits and later product commits.
 - Existing tests and helpers strongly assume draft request resolution via `presentation_definition`, so v1 support must add a parallel path instead of replacing that assumption globally in one step.
 
+## Known SD-JWT Interop Note
+- The legacy verifier SD-JWT path can fail on `signature_sd-jwt-vc` with holder key-binding verification errors in some wallet/verifier combinations.
+- This is not a standards limitation of SD-JWT itself; it is an implementation-interoperability risk in the current mainline stack.
+- PR1 commit `ac04d1f5b` addresses one key cause on the wallet side by selecting the holder-bound wallet key for OpenID4VP submissions instead of always using the fallback DID key.
+- Related public issue context:
+  - [https://github.com/walt-id/waltid-identity/issues/713](https://github.com/walt-id/waltid-identity/issues/713)
+  - [https://github.com/walt-id/waltid-identity/issues/1272](https://github.com/walt-id/waltid-identity/issues/1272)
+  - [https://github.com/walt-id/waltid-identity/issues/779](https://github.com/walt-id/waltid-identity/issues/779)
+
 ## Delivery Strategy
 - Docs branch:
   - `docs/oid4vp-steering`
