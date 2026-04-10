@@ -173,7 +173,7 @@ async function main() {
     });
     await saveScreenshot(verifier.page, artifactDir, "verifier", "01-verifier2-request-ready.png");
 
-    const walletLaunchUrl = buildWalletInitiatePresentationUrl(defaults.walletBaseUrl, walletRequestUrl);
+    const walletLaunchUrl = buildWalletInitiatePresentationUrl(defaults.walletBaseUrl, walletId, walletRequestUrl);
     await wallet.page.goto(walletLaunchUrl, { waitUntil: "networkidle" });
     await saveScreenshot(wallet.page, artifactDir, "wallet", "03-wallet-presentation-request.png");
     await openAndPresent(wallet.page, { expectTransactionDetails: false });
@@ -278,11 +278,7 @@ function buildDcqlQuery(presentationFormat) {
         {
           id: "my_pid",
           format: "dc+sd-jwt",
-          meta: {
-            vct_values: [
-              "https://issuer.demo.walt.id/draft13/identity_credential",
-            ],
-          },
+          meta: {},
         },
       ],
     };
@@ -294,9 +290,7 @@ function buildDcqlQuery(presentationFormat) {
         {
           id: "my_identity",
           format: "jwt_vc_json",
-          meta: {
-            type_values: [["VerifiableCredential", "IdentityCredential"]],
-          },
+          meta: {},
         },
       ],
     };

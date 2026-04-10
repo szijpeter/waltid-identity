@@ -313,8 +313,17 @@ export async function waitForWalletCredentials(
   throw new Error(`Timed out waiting for wallet ${walletId} to contain at least ${minCount} credential(s).`);
 }
 
-export function buildWalletInitiatePresentationUrl(walletBaseUrl, requestUrl) {
-  return `${walletBaseUrl}/api/siop/initiatePresentation${requestUrl.substring(requestUrl.indexOf("?"))}`;
+function encodeRequestForWallet(requestUrl) {
+  return Buffer.from(requestUrl, "utf-8")
+    .toString("base64")
+    .replaceAll("=", "")
+    .replaceAll("+", "-")
+    .replaceAll("/", "_");
+}
+
+export function buildWalletInitiatePresentationUrl(walletBaseUrl, walletId, requestUrl) {
+  const encodedRequest = encodeRequestForWallet(requestUrl);
+  return `${walletBaseUrl}/wallet/${walletId}/exchange/presentation?request=${encodedRequest}`;
 }
 
 export async function openAndPresent(page, { expectTransactionDetails = false } = {}) {

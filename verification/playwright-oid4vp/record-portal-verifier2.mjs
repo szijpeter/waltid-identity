@@ -83,7 +83,7 @@ async function main() {
 
     await saveScreenshot(verifier.page, artifactDir, "verifier", "02-verifier2-request-ready.png");
 
-    const walletLaunchUrl = buildWalletInitiatePresentationUrl(defaults.walletBaseUrl, walletRequestUrl);
+    const walletLaunchUrl = buildWalletInitiatePresentationUrl(defaults.walletBaseUrl, walletId, walletRequestUrl);
     await wallet.page.goto(walletLaunchUrl, { waitUntil: "networkidle" });
     await saveScreenshot(wallet.page, artifactDir, "wallet", "03-wallet-presentation-request.png");
     await openAndPresent(wallet.page, { expectTransactionDetails: true });
