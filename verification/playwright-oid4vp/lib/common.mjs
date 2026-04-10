@@ -402,6 +402,191 @@ export async function ensureTransactionPageAvailable(page, config = defaults) {
   await page.locator("h1").filter({ hasText: "Transaction Verification" }).first().waitFor();
 }
 
+export async function renderVerifier2HarnessPanel(
+  page,
+  {
+    phase,
+    presentationFormat,
+    requestShape,
+    sessionId = null,
+    walletRequestUrl = null,
+    verifier2Status = null,
+    requestUriPostSupported = null,
+    requestUriPostProbeStatus = null,
+    details = null,
+    error = null,
+  },
+) {
+  const statusClass = error ? "status-failed" : verifier2Status === "SUCCESSFUL" || verifier2Status === "COMPLETED"
+    ? "status-success"
+    : "status-progress";
+  const statusLabel = error ? "FAILED" : verifier2Status ?? "IN_PROGRESS";
+  const detailsText = details == null
+    ? "{}"
+    : JSON.stringify(details, null, 2);
+  const requestUrlText = walletRequestUrl ?? "pending";
+  const requestUriPostText = requestUriPostSupported == null
+    ? "not checked"
+    : requestUriPostSupported
+      ? `supported (status ${requestUriPostProbeStatus ?? "n/a"})`
+      : `not supported (status ${requestUriPostProbeStatus ?? "n/a"})`;
+
+  await page.setContent(
+    `<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Verifier2 Harness</title>
+    <style>
+      :root {
+        color-scheme: light;
+      }
+      body {
+        margin: 0;
+        background: #f8fafc;
+        color: #0f172a;
+        font-family: "Inter", "Segoe UI", sans-serif;
+      }
+      .layout {
+        min-height: 100vh;
+        padding: 36px;
+      }
+      .card {
+        max-width: 1220px;
+        margin: 0 auto;
+        background: #ffffff;
+        border-radius: 28px;
+        box-shadow: 0 24px 48px rgba(15, 23, 42, 0.08);
+        overflow: hidden;
+      }
+      .hero {
+        padding: 28px 34px 20px 34px;
+        border-bottom: 1px solid #e2e8f0;
+      }
+      .eyebrow {
+        font-size: 12px;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+        color: #64748b;
+        font-weight: 600;
+      }
+      h1 {
+        margin: 10px 0 6px;
+        font-size: 34px;
+        line-height: 1.2;
+      }
+      .subtitle {
+        margin: 0;
+        color: #475569;
+        font-size: 15px;
+      }
+      .content {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 24px;
+        padding: 24px 34px 34px 34px;
+      }
+      .panel {
+        border: 1px solid #e2e8f0;
+        border-radius: 20px;
+        padding: 18px 20px;
+        background: #ffffff;
+      }
+      .panel h2 {
+        margin: 0 0 12px 0;
+        font-size: 15px;
+      }
+      .kv {
+        display: grid;
+        grid-template-columns: 180px 1fr;
+        gap: 8px;
+        font-size: 14px;
+      }
+      .kv dt {
+        color: #64748b;
+      }
+      .kv dd {
+        margin: 0;
+        word-break: break-word;
+      }
+      .status {
+        display: inline-flex;
+        align-items: center;
+        border-radius: 999px;
+        padding: 6px 12px;
+        font-size: 12px;
+        font-weight: 700;
+        letter-spacing: 0.02em;
+      }
+      .status-progress {
+        background: #eff6ff;
+        color: #1d4ed8;
+      }
+      .status-success {
+        background: #ecfdf3;
+        color: #15803d;
+      }
+      .status-failed {
+        background: #fef2f2;
+        color: #b91c1c;
+      }
+      pre {
+        margin: 0;
+        padding: 14px;
+        border-radius: 14px;
+        background: #020617;
+        color: #e2e8f0;
+        font-size: 12px;
+        line-height: 1.45;
+        overflow: auto;
+        max-height: 400px;
+      }
+      .error {
+        margin-top: 12px;
+        border: 1px solid #fecaca;
+        border-radius: 14px;
+        background: #fff1f2;
+        color: #9f1239;
+        padding: 10px 12px;
+        font-size: 13px;
+      }
+    </style>
+  </head>
+  <body>
+    <main class="layout">
+      <article class="card">
+        <header class="hero">
+          <div class="eyebrow">Verifier2 Harness</div>
+          <h1>OpenID4VP 1.0 Request Matrix</h1>
+          <p class="subtitle">PR1 compatibility recording view modeled after the transaction verifier UX.</p>
+        </header>
+        <section class="content">
+          <div class="panel">
+            <h2>Session State</h2>
+            <p><span class="status ${statusClass}">${escapeHtml(statusLabel)}</span></p>
+            <dl class="kv">
+              <dt>Phase</dt><dd>${escapeHtml(phase ?? "Unknown")}</dd>
+              <dt>Format</dt><dd>${escapeHtml(presentationFormat ?? "n/a")}</dd>
+              <dt>Request shape</dt><dd>${escapeHtml(requestShape ?? "n/a")}</dd>
+              <dt>Session ID</dt><dd>${escapeHtml(sessionId ?? "pending")}</dd>
+              <dt>request_uri POST</dt><dd>${escapeHtml(requestUriPostText)}</dd>
+              <dt>Wallet request URL</dt><dd>${escapeHtml(requestUrlText)}</dd>
+            </dl>
+            ${error ? `<div class="error">${escapeHtml(error)}</div>` : ""}
+          </div>
+          <div class="panel">
+            <h2>Live Details</h2>
+            <pre>${escapeHtml(detailsText)}</pre>
+          </div>
+        </section>
+      </article>
+    </main>
+  </body>
+</html>`,
+    { waitUntil: "load" },
+  );
+}
+
 export async function finalizeRun(artifactDir, browserContexts, metadata) {
   for (const item of browserContexts) {
     try {
@@ -445,4 +630,13 @@ function slugify(value) {
 
 function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function escapeHtml(value) {
+  return String(value)
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#39;");
 }

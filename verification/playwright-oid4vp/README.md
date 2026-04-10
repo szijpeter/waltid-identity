@@ -37,7 +37,7 @@ docker compose \
     - `request_object_unsigned`
     - `request_object_signed`
     - optional probe: `request_uri_post`
-  - verifier-side evidence is captured from verifier2 session info endpoint pages
+  - verifier-side evidence is captured from a harness-local verifier UI panel (PR2-style state view) populated from verifier2 API responses
 
 ## Branch-oriented suites
 

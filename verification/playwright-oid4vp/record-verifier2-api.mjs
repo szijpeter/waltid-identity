@@ -14,6 +14,7 @@ import {
   makeArtifactDir,
   openAndPresent,
   registerAndLogin,
+  renderVerifier2HarnessPanel,
   saveScreenshot,
   waitForVerifier2TerminalSessionStatus,
   waitForWalletCredentials,
@@ -91,12 +92,6 @@ async function main() {
       throw new Error("Missing verifier2 sessionId in /verification-session/create response.");
     }
 
-    await verifier.page.goto(
-      `${defaults.verifier2BaseUrl}/verification-session/${encodeURIComponent(verifier2SessionId)}/info`,
-      { waitUntil: "networkidle" },
-    );
-    await saveScreenshot(verifier.page, artifactDir, "verifier", "01-verifier2-session-created.png");
-
     const initialSessionInfo = await fetchVerifier2SessionInfo(api, verifier2SessionId, defaults);
     let requestUriPostSupported = null;
     let requestUriPostProbeStatus = null;
@@ -126,6 +121,19 @@ async function main() {
         requestUriPostProbeStatus,
         reason: "request_uri_method=post not supported by verifier2 /request endpoint",
       };
+      await renderVerifier2HarnessPanel(verifier.page, {
+        phase: "Skipped unsupported request_uri_method=post",
+        presentationFormat,
+        requestShape,
+        sessionId: verifier2SessionId,
+        verifier2Status: metadata.status,
+        requestUriPostSupported,
+        requestUriPostProbeStatus,
+        details: {
+          reason: metadata.reason,
+        },
+      });
+      await saveScreenshot(verifier.page, artifactDir, "verifier", "01-verifier2-skipped-unsupported.png");
       console.log(`Artifacts saved in ${artifactDir}`);
       console.log(JSON.stringify(metadata, null, 2));
       console.log(`RUN_STATUS:${metadata.status}`);
@@ -144,6 +152,27 @@ async function main() {
       throw new Error(`Could not resolve wallet request URL for request shape "${requestShape}".`);
     }
 
+    await renderVerifier2HarnessPanel(verifier.page, {
+      phase: "Authorization request created",
+      presentationFormat,
+      requestShape,
+      sessionId: verifier2SessionId,
+      walletRequestUrl,
+      verifier2Status: initialSessionInfo.status ?? "CREATED",
+      requestUriPostSupported,
+      requestUriPostProbeStatus,
+      details: {
+        requestMode: initialSessionInfo.requestMode ?? null,
+        hasSignedAuthorizationRequestJwt: Boolean(initialSessionInfo.signedAuthorizationRequestJwt),
+        hasAuthorizationRequest: Boolean(initialSessionInfo.authorizationRequest),
+        verifier2CreateResponse: {
+          hasBootstrapAuthorizationRequestUrl: Boolean(creationPayload.bootstrapAuthorizationRequestUrl),
+          hasFullAuthorizationRequestUrl: Boolean(creationPayload.fullAuthorizationRequestUrl),
+        },
+      },
+    });
+    await saveScreenshot(verifier.page, artifactDir, "verifier", "01-verifier2-request-ready.png");
+
     const walletLaunchUrl = buildWalletInitiatePresentationUrl(defaults.walletBaseUrl, walletRequestUrl);
     await wallet.page.goto(walletLaunchUrl, { waitUntil: "networkidle" });
     await saveScreenshot(wallet.page, artifactDir, "wallet", "03-wallet-presentation-request.png");
@@ -155,13 +184,25 @@ async function main() {
       throw new Error(`Verifier2 session did not complete successfully: ${JSON.stringify(terminal)}`);
     }
 
-    await verifier.page.goto(
-      `${defaults.verifier2BaseUrl}/verification-session/${encodeURIComponent(verifier2SessionId)}/info`,
-      { waitUntil: "networkidle" },
-    );
-    await saveScreenshot(verifier.page, artifactDir, "verifier", "02-verifier2-session-terminal.png");
-
     const finalSessionInfo = await fetchVerifier2SessionInfo(api, verifier2SessionId, defaults);
+    await renderVerifier2HarnessPanel(verifier.page, {
+      phase: "Presentation completed",
+      presentationFormat,
+      requestShape,
+      sessionId: verifier2SessionId,
+      walletRequestUrl,
+      verifier2Status: finalSessionInfo.status ?? terminal.status,
+      requestUriPostSupported,
+      requestUriPostProbeStatus,
+      details: {
+        requestMode: finalSessionInfo.requestMode ?? null,
+        signedAuthorizationRequestPresent: Boolean(finalSessionInfo.signedAuthorizationRequestJwt),
+        policyResults: finalSessionInfo.policyResults ?? null,
+        presentedCredentials: finalSessionInfo.presentedCredentials ?? null,
+      },
+    });
+    await saveScreenshot(verifier.page, artifactDir, "verifier", "02-verifier2-terminal.png");
+
     metadata = {
       scenario: "verifier2-api",
       status: "SUCCESSFUL",
@@ -196,6 +237,20 @@ async function main() {
       presentationFormat,
       error: String(error),
     };
+    try {
+      await renderVerifier2HarnessPanel(verifier.page, {
+        phase: "Failed",
+        presentationFormat,
+        requestShape,
+        sessionId: verifier2SessionId,
+        verifier2Status: metadata.status,
+        details: metadata,
+        error: metadata.error,
+      });
+      await saveScreenshot(verifier.page, artifactDir, "verifier", "99-verifier2-failed.png");
+    } catch {
+      // Best effort failure evidence only.
+    }
     console.log(`RUN_STATUS:${metadata.status}`);
     console.log(`RUN_ARTIFACT_DIR:${artifactDir}`);
     await finalizeRun(artifactDir, [wallet, verifier], metadata);
