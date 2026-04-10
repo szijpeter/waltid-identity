@@ -14,6 +14,10 @@ It is intentionally kept outside the product branches and is not meant to be mer
 - transaction-data flow:
   - `dc+sd-jwt`
   - `mso_mdoc`
+- main-compatible smoke flow:
+  - wallet register/login
+  - DID creation
+  - credential issue + claim
 
 ## Assumptions
 
@@ -44,6 +48,7 @@ npm run record:shape -- --shape=request
 npm run record:shape -- --shape=signed-request
 npm run record:transaction
 PRESENTATION_FORMAT=mso_mdoc npm run record:transaction
+npm run record:smoke-main
 ```
 
 Artifacts are written to:
@@ -77,3 +82,9 @@ x509_san_dns:verifier.example.com
 ```
 
 If verifier2 is still using the default plain `verifier2` client ID, the signed-request scenario is expected to fail.
+
+## Main-branch sanity expectations
+
+`record:smoke-main` is the baseline check that should remain valid on `main`.
+
+The OpenID4VP 1.0 and transaction scenarios are feature checks and may fail on `main` depending on branch state.

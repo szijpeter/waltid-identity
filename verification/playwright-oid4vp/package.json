@@ -3,6 +3,7 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "record:smoke-main": "node record-main-smoke.mjs",
     "record:base": "node record-openid4vp-base.mjs",
     "record:shape": "node record-openid4vp-shape.mjs",
     "record:transaction": "node record-transaction-demo.mjs"
