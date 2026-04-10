@@ -20,7 +20,10 @@ import {
 } from "./lib/common.mjs";
 
 const legacyCredentialId = process.env.LEGACY_CREDENTIAL_ID ?? "IdentityCredential";
-const legacyFormat = process.env.LEGACY_FORMAT ?? "SD-JWT + IETF SD-JWT VC";
+const legacyFormat = process.env.LEGACY_FORMAT ?? "JWT + W3C VC";
+const disableSignaturePolicy = !["0", "false", "no"].includes(
+  (process.env.LEGACY_DISABLE_SIGNATURE_POLICY ?? "false").toLowerCase(),
+);
 
 async function main() {
   const artifactDir = await makeArtifactDir("legacy-verifier-portal");
@@ -46,7 +49,9 @@ async function main() {
     }
 
     const did = await createDid(api, walletId, "jwk", defaults);
-    const offerUrl = await issueCredentialOffer(api, "dc+sd-jwt", defaults);
+    const legacyIssuanceFormat =
+      legacyFormat === "JWT + W3C VC" ? "jwt_vc_json" : "dc+sd-jwt";
+    const offerUrl = await issueCredentialOffer(api, legacyIssuanceFormat, defaults);
     const claimed = await claimOffer(api, walletId, did, offerUrl, defaults);
     if (!Array.isArray(claimed) || claimed.length === 0) {
       throw new Error("Expected at least one claimed credential.");
@@ -68,13 +73,54 @@ async function main() {
 
     const formatDropdown = verifier.page.locator("[id^='headlessui-listbox-button-']").first();
     await formatDropdown.click();
-    await verifier.page.getByText(legacyFormat, { exact: true }).click();
+    await verifier.page.getByRole("listbox").getByText(legacyFormat, { exact: true }).first().click();
+
+    if (disableSignaturePolicy) {
+      const signatureUnchecked = await verifier.page.evaluate(() => {
+        const textElement = Array.from(document.querySelectorAll("*")).find(
+          (el) => el.textContent?.trim() === "Signature Policy",
+        );
+        if (!textElement) {
+          return false;
+        }
+
+        const row =
+          textElement.closest("label, li, div, tr") ??
+          textElement.parentElement ??
+          textElement;
+        const checkbox = row.querySelector("input[type='checkbox']");
+        if (!checkbox) {
+          return false;
+        }
+
+        if (checkbox.checked) {
+          checkbox.click();
+        }
+
+        return !checkbox.checked;
+      });
+
+      if (!signatureUnchecked) {
+        throw new Error("Could not disable Signature Policy in verifier customize screen.");
+      }
+    }
+
     await saveScreenshot(verifier.page, artifactDir, "verifier", "02-verifier-customized.png");
 
+    const verifyRequestBodyPromise = verifier.page.waitForRequest((request) =>
+      request.method() === "POST" && request.url().includes("/openid4vc/verify"),
+    );
     const verifyRequestPromise = verifier.page.waitForResponse((response) =>
       response.request().method() === "POST" && response.url().includes("/openid4vc/verify"),
     );
     await verifier.page.getByRole("button", { name: /^Verify$/i }).last().click();
+    const verifyRequestBody = await verifyRequestBodyPromise;
+    const verifyRequestText = verifyRequestBody.postData() ?? "";
+    if (disableSignaturePolicy && verifyRequestText.toLowerCase().includes("signature")) {
+      throw new Error(
+        `Signature Policy still present in /openid4vc/verify payload despite disable request: ${verifyRequestText}`,
+      );
+    }
     const verifyResponse = await verifyRequestPromise;
     const verifyResponseText = (await verifyResponse.text()).trim();
 

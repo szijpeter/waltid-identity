@@ -66,6 +66,44 @@ export const sdJwtIssuancePayload = {
   },
 };
 
+export const jwtVcIssuancePayload = {
+  issuerKey: {
+    type: "jwk",
+    jwk: {
+      kty: "OKP",
+      d: "fbpXmCh4KkcVIGOnkcjHvWAcaUPvvkBvgMFPE4nAgvA",
+      crv: "Ed25519",
+      kid: "DJ3X4BZqk4GJsMGZL44hEZrlEy9scbMcSA_QuUi3tGs",
+      x: "Y64Ns3aRo6KQgJTtCZKFA78uYvslBcIrOk7xaS1PIZI",
+    },
+  },
+  issuerDid: "did:key:z6MkmANLkdcnbriWeVaqdfrA3MmtXoVPNu98tww6xDeyVnyF",
+  credentialConfigurationId: "IdentityCredential_jwt_vc_json",
+  credentialData: {
+    type: ["VerifiableCredential", "IdentityCredential"],
+    given_name: "John",
+    family_name: "Doe",
+    email: "johndoe@example.com",
+    phone_number: "+1-202-555-0101",
+    address: {
+      street_address: "123 Main St",
+      locality: "Anytown",
+      region: "Anystate",
+      country: "US",
+    },
+    birthdate: "1940-01-01",
+    is_over_18: true,
+    is_over_21: true,
+    is_over_65: true,
+  },
+  mapping: {
+    id: "<uuid>",
+    iat: "<timestamp-seconds>",
+    nbf: "<timestamp-seconds>",
+    exp: "<timestamp-in-seconds:365d>",
+  },
+};
+
 export const mdocIssuancePayload = {
   issuerKey: {
     type: "jwk",
@@ -210,6 +248,16 @@ export async function createDid(api, walletId, method = "jwk", config = defaults
 }
 
 export async function issueCredentialOffer(api, presentationFormat = "dc+sd-jwt", config = defaults) {
+  if (presentationFormat === "jwt_vc_json") {
+    const response = await expectOk(
+      await api.post(`${config.issuerApiBaseUrl}/openid4vc/jwt/issue`, {
+        data: jwtVcIssuancePayload,
+      }),
+      "issue jwt-vc offer",
+    );
+    return response.text();
+  }
+
   if (presentationFormat === "mso_mdoc") {
     const response = await expectOk(
       await api.post(`${config.issuerApiBaseUrl}/openid4vc/mdoc/issue`, {

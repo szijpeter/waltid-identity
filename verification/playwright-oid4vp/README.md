@@ -122,7 +122,8 @@ VERIFIER_BASE_URL=http://localhost:7303
 VERIFIER2_BASE_URL=http://localhost:7304
 
 LEGACY_CREDENTIAL_ID=IdentityCredential
-LEGACY_FORMAT=SD-JWT + IETF SD-JWT VC
+LEGACY_FORMAT=JWT + W3C VC
+LEGACY_DISABLE_SIGNATURE_POLICY=false
 PRESENTATION_FORMAT=dc+sd-jwt
 INCLUDE_MDOC=false
 ARTIFACT_BRANCH_TAG=main
@@ -130,6 +131,7 @@ ARTIFACT_BRANCH_TAG=main
 
 ## Failure expectations
 
+- On `main`, the legacy verifier flow is recorded with `LEGACY_FORMAT=JWT + W3C VC` by default. This avoids the known SD-JWT holder-binding verification failure in current legacy verifier defaults.
 - On stacks where the legacy verifier endpoint `/openid4vc/verify` is unavailable, `record:scenario:legacy` fails fast with a clear legacy-verifier requirement message.
 - On branches where `/verify/transaction` is not implemented in the portal, `record:scenario:verifier2` fails fast with a clear message.
 - On branches where wallet-api does not yet support OpenID4VP 1.0 request resolution, `record:scenario:verifier2` fails with a clear wallet compatibility message.
