@@ -34,8 +34,8 @@ import id.walt.oid4vc.responses.AuthorizationErrorCode
 import id.walt.oid4vc.responses.TokenResponse
 import id.walt.openid4vp.clientidprefix.ClientIdError
 import id.walt.dcql.DcqlMatcher
-import id.walt.dcql.RawDcqlCredential
 import id.walt.verifier.openid.models.openid.OpenID4VPResponseMode
+import id.walt.verifier.openid.transactiondata.SUPPORTED_TRANSACTION_DATA_TYPES
 import id.walt.webwallet.FeatureCatalog
 import id.walt.webwallet.config.KeyGenerationDefaultsConfig
 import id.walt.webwallet.config.RegistrationDefaultsConfig
@@ -64,7 +64,7 @@ import id.walt.webwallet.utils.StringUtils.couldBeJsonObject
 import id.walt.webwallet.utils.StringUtils.parseAsJsonObject
 import id.walt.webwallet.web.controllers.exchange.PresentationRequestParameter
 import id.walt.webwallet.web.parameter.CredentialRequestParameter
-import id.walt.verifier.openid.TransactionDataUtils
+
 import id.walt.verifier.openid.models.authorization.AuthorizationRequest as OpenId4VpAuthorizationRequest
 import id.waltid.openid4vp.wallet.WalletPresentFunctionality2
 import id.waltid.openid4vp.wallet.request.AuthorizationRequestResolver
@@ -109,7 +109,7 @@ class SSIKit2WalletService(
     private val eventService = EventService()
     private val credentialReportsService = ReportService.Credentials(credentialService, eventService)
     private val openId4VpPresentationService = OpenId4VpPresentationService(http, credentialService)
-    private val supportedTransactionDataTypes = TransactionDataUtils.SUPPORTED_TRANSACTION_DATA_TYPES
+    private val supportedTransactionDataTypes = SUPPORTED_TRANSACTION_DATA_TYPES
 
     companion object {
         val defaultGenerationConfig by lazy { ConfigManager.getConfig<RegistrationDefaultsConfig>() }
