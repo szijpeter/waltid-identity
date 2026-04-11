@@ -438,13 +438,13 @@ The branch was also validated by:
 
 Current successful task-1 browser artifacts:
 - base verifier2 `request_uri` flow:
-  - `/tmp/waltid-playwright/artifacts/base-2026-04-09T19-22-47.927Z`
+  - `$HOME/.waltid-playwright-artifacts/wallet-openid4vp-v1--verifier2-api-dc-sd-jwt-request_uri_get--<timestamp>/`
 - direct query-parameter flow:
-  - `/tmp/waltid-playwright/artifacts/direct-2026-04-09T19-22-47.927Z`
+  - `$HOME/.waltid-playwright-artifacts/wallet-openid4vp-v1--verifier2-api-dc-sd-jwt-direct--<timestamp>/`
 - inline `request` Request Object flow:
-  - `/tmp/waltid-playwright/artifacts/request-2026-04-09T19-22-47.928Z`
+  - `$HOME/.waltid-playwright-artifacts/wallet-openid4vp-v1--verifier2-api-dc-sd-jwt-request_object_unsigned--<timestamp>/`
 - signed request-object flow:
-  - `/tmp/waltid-playwright/artifacts/signed-request-2026-04-09T19-31-56.517Z`
+  - `$HOME/.waltid-playwright-artifacts/wallet-openid4vp-v1--verifier2-api-dc-sd-jwt-request_object_signed--<timestamp>/`
 
 Important note about the signed-request artifact:
 - the verifier2 temp config must use `clientId: "x509_san_dns:verifier.example.com"` for that scenario

@@ -22,12 +22,14 @@
 - Current docs branch: `docs/oid4vp-steering`
 - Feature branch 1: `feat/wallet-openid4vp-v1`
 - Feature branch 2: `feat/transaction-data-support`
-- Follow-up branch: `feat/wallet-openid4vp-holder-binding-fix`
+- Follow-up branch 1: `feat/wallet-openid4vp-holder-binding-fix`
+- Follow-up branch 2: `feat/transaction-data-verifier2-verification-followup`
 
 ## Active Branches
 - `feat/wallet-openid4vp-v1`
 - `feat/transaction-data-support`
 - `feat/wallet-openid4vp-holder-binding-fix`
+- `feat/transaction-data-verifier2-verification-followup`
 
 ## Feature Branch Status
 - `feat/wallet-openid4vp-v1`
@@ -53,6 +55,11 @@
   - fork PR: [https://github.com/szijpeter/waltid-identity/pull/5](https://github.com/szijpeter/waltid-identity/pull/5)
   - PR base is `feat/wallet-openid4vp-v1`
   - this branch intentionally carries only the SD-JWT holder-binding interop mitigation that was split out of PR1 scope
+- `feat/transaction-data-verifier2-verification-followup`
+  - pushed to fork and under review
+  - fork PR: [https://github.com/szijpeter/waltid-identity/pull/6](https://github.com/szijpeter/waltid-identity/pull/6)
+  - PR base is `feat/transaction-data-support`
+  - this branch intentionally carries only verifier2 compatibility-validator transaction-data checks split out of PR2 scope
 
 ## Commit Separation
 - Docs commits stay on docs branch.
@@ -77,10 +84,10 @@
   - legacy compatibility rerun on current branch head:
     - `./gradlew --no-daemon --max-workers=3 --rerun-tasks :waltid-services:waltid-integration-tests:test :waltid-services:waltid-e2e-tests:test`
 - Task 2 focused validation:
-  - `./gradlew --no-build-cache :waltid-libraries:protocols:waltid-openid4vp:jvmTest --tests 'id.walt.verifier.openid.TransactionDataUtilsTest' :waltid-libraries:credentials:waltid-verification-policies2-vp:jvmTest --tests 'id.walt.policies2.vp.policies.TransactionDataHashCheckSdJwtVPPolicyTest' --tests 'id.walt.policies2.vp.policies.TransactionDataMdocVpPolicyTest' :waltid-services:waltid-verifier-api2:test --tests 'id.walt.verifier2.sdjwt.IETFSdJwtVcWithDisclosureVerifier2IntegrationTest' --tests 'id.walt.verifier2.mdocs.PidBirthDateIssuerSignedIntegrityReproTest'`
+  - `./gradlew --no-build-cache :waltid-libraries:protocols:waltid-openid4vp:jvmTest --tests 'id.walt.verifier.openid.transactiondata.*' :waltid-libraries:credentials:waltid-verification-policies2-vp:jvmTest --tests 'id.walt.policies2.vp.policies.TransactionDataHashCheckSdJwtVPPolicyTest' --tests 'id.walt.policies2.vp.policies.TransactionDataMdocVpPolicyTest' :waltid-services:waltid-verifier-api2:test --tests 'id.walt.verifier2.sdjwt.IETFSdJwtVcWithDisclosureVerifier2IntegrationTest' --tests 'id.walt.verifier2.mdocs.PidBirthDateIssuerSignedIntegrityReproTest'`
   - `./gradlew --no-build-cache :waltid-services:waltid-issuer-api:compileKotlin :waltid-services:waltid-wallet-api:test --tests 'id.walt.webwallet.service.exchange.OpenId4VpPresentationServiceTest'`
   - post-restack validation:
-    - `./gradlew --no-build-cache :waltid-libraries:protocols:waltid-openid4vp:jvmTest --tests 'id.walt.verifier.openid.TransactionDataUtilsTest' :waltid-libraries:credentials:waltid-verification-policies2-vp:jvmTest --tests 'id.walt.policies2.vp.policies.TransactionDataHashCheckSdJwtVPPolicyTest' --tests 'id.walt.policies2.vp.policies.TransactionDataMdocVpPolicyTest' :waltid-services:waltid-wallet-api:test --tests 'id.walt.webwallet.service.exchange.OpenId4VpPresentationServiceTest'`
+    - `./gradlew --no-build-cache :waltid-libraries:protocols:waltid-openid4vp:jvmTest --tests 'id.walt.verifier.openid.transactiondata.*' :waltid-libraries:credentials:waltid-verification-policies2-vp:jvmTest --tests 'id.walt.policies2.vp.policies.TransactionDataHashCheckSdJwtVPPolicyTest' --tests 'id.walt.policies2.vp.policies.TransactionDataMdocVpPolicyTest' :waltid-services:waltid-wallet-api:test --tests 'id.walt.webwallet.service.exchange.OpenId4VpPresentationServiceTest'`
 - Production Docker validation:
   - `docker build -t waltid-web-portal-local -f waltid-applications/waltid-web-portal/Dockerfile .`
   - `docker build -t waltid-demo-wallet-local -f waltid-applications/waltid-web-wallet/apps/waltid-demo-wallet/Dockerfile .`
@@ -92,12 +99,15 @@
   - Playwright signed request-object flow completed successfully on current branch head when verifier2 is started with the `x509_san_dns:verifier.example.com` profile
   - Playwright transaction flow completed successfully for `dc+sd-jwt`
   - Playwright transaction flow completed successfully for `mso_mdoc`
-  - latest task-1 base artifact set: `/tmp/waltid-playwright/artifacts/base-2026-04-09T19-22-47.927Z`
-  - latest task-1 direct artifact set: `/tmp/waltid-playwright/artifacts/direct-2026-04-09T19-22-47.927Z`
-  - latest task-1 inline-request artifact set: `/tmp/waltid-playwright/artifacts/request-2026-04-09T19-22-47.928Z`
-  - latest task-1 signed-request artifact set: `/tmp/waltid-playwright/artifacts/signed-request-2026-04-09T19-31-56.517Z`
-  - latest task-2 SD-JWT artifact set: `/tmp/waltid-playwright/artifacts/2026-04-09T19-39-35.888Z`
-  - latest task-2 mdoc artifact set: `/tmp/waltid-playwright/artifacts/2026-04-09T19-39-47.994Z`
+  - artifacts are persisted under: `$HOME/.waltid-playwright-artifacts/<branch-tag>--<scenario>--<timestamp>/`
+  - canonical task-1 scenario names:
+    - `main--legacy-verifier-portal--...`
+    - `wallet-openid4vp-v1--verifier2-api-dc-sd-jwt-request_uri_get--...`
+    - `wallet-openid4vp-v1--verifier2-api-dc-sd-jwt-request_object_unsigned--...`
+    - `wallet-openid4vp-v1--verifier2-api-dc-sd-jwt-request_object_signed--...`
+  - canonical task-2 scenario names:
+    - `transaction-data-support--verifier2-portal-dc-sd-jwt--...`
+    - `transaction-data-support--verifier2-portal-mso-mdoc--...`
 - Full repo CI-like validation:
   - `./gradlew clean build cleanAllTests allTests --rerun-tasks --no-daemon --max-workers=3`
   - current outcome: branch-related wallet/integration/e2e suites are green; the full run still fails in unrelated JS-node test `VcApiTest.testVcApi[js, node]` under `waltid-libraries/credentials/waltid-w3c-credentials`

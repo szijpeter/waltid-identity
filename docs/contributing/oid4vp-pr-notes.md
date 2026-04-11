@@ -4,6 +4,7 @@
 - `feat/wallet-openid4vp-v1`
 - `feat/transaction-data-support`
 - `feat/wallet-openid4vp-holder-binding-fix`
+- `feat/transaction-data-verifier2-verification-followup`
 
 ## Current Fork PRs
 - PR 1: [Add OpenID4VP 1.0 support to wallet-api](https://github.com/szijpeter/waltid-identity/pull/3)
@@ -15,6 +16,9 @@
 - PR 3 (follow-up): [Fix OpenID4VP holder-bound key selection for SD-JWT presentations](https://github.com/szijpeter/waltid-identity/pull/5)
   - branch: `feat/wallet-openid4vp-holder-binding-fix`
   - base: `feat/wallet-openid4vp-v1`
+- PR 4 (follow-up): [Follow-up: add transaction-data checks in verifier2 compatibility validators](https://github.com/szijpeter/waltid-identity/pull/6)
+  - branch: `feat/transaction-data-verifier2-verification-followup`
+  - base: `feat/transaction-data-support`
 
 ## PR 1 Draft Notes
 
@@ -50,6 +54,7 @@
 
 ### Exclusions
 - No steering docs in this PR branch.
+- No verifier2 compatibility-validator package additions in this PR branch (`id.walt.verifier2.verification` moved to follow-up PR #6).
 
 ## Review Reminders
 - Keep language neutral and technical.
@@ -68,15 +73,18 @@
   - browser E2E passed for the demo wallet verifier2 flow, direct query-param flow, inline `request` flow, and signed request-object flow
   - the full repo CI-like run still fails in unrelated JS-node test `VcApiTest.testVcApi[js, node]` under `waltid-w3c-credentials`
 - Current branch 1 browser artifacts:
-  - base verifier2 flow: `/tmp/waltid-playwright/artifacts/base-2026-04-09T19-22-47.927Z`
-  - direct flow: `/tmp/waltid-playwright/artifacts/direct-2026-04-09T19-22-47.927Z`
-  - inline `request` flow: `/tmp/waltid-playwright/artifacts/request-2026-04-09T19-22-47.928Z`
-  - signed request-object flow: `/tmp/waltid-playwright/artifacts/signed-request-2026-04-09T19-31-56.517Z`
+  - artifacts are now stored under:
+    - `$HOME/.waltid-playwright-artifacts/<branch-tag>--<scenario>--<timestamp>/`
+  - canonical task-1 scenario names:
+    - `main--legacy-verifier-portal--...`
+    - `wallet-openid4vp-v1--verifier2-api-dc-sd-jwt-request_uri_get--...`
+    - `wallet-openid4vp-v1--verifier2-api-dc-sd-jwt-request_object_unsigned--...`
+    - `wallet-openid4vp-v1--verifier2-api-dc-sd-jwt-request_object_signed--...`
 - Current branch 2 post-restack checks:
-  - `./gradlew --no-build-cache --no-daemon :waltid-libraries:protocols:waltid-openid4vp:jvmTest --tests 'id.walt.verifier.openid.TransactionDataUtilsTest' :waltid-libraries:credentials:waltid-verification-policies2-vp:jvmTest --tests 'id.walt.policies2.vp.policies.TransactionDataHashCheckSdJwtVPPolicyTest' --tests 'id.walt.policies2.vp.policies.TransactionDataMdocVpPolicyTest' :waltid-services:waltid-wallet-api:test --tests 'id.walt.webwallet.service.exchange.OpenId4VpPresentationServiceTest' :waltid-services:waltid-verifier-api2:test --tests 'id.walt.verifier2.sdjwt.IETFSdJwtVcWithDisclosureVerifier2IntegrationTest' --tests 'id.walt.verifier2.mdocs.PidBirthDateIssuerSignedIntegrityReproTest'`
+  - `./gradlew --no-build-cache --no-daemon :waltid-libraries:protocols:waltid-openid4vp:jvmTest --tests 'id.walt.verifier.openid.transactiondata.*' :waltid-libraries:credentials:waltid-verification-policies2-vp:jvmTest --tests 'id.walt.policies2.vp.policies.TransactionDataHashCheckSdJwtVPPolicyTest' --tests 'id.walt.policies2.vp.policies.TransactionDataMdocVpPolicyTest' :waltid-services:waltid-wallet-api:test --tests 'id.walt.webwallet.service.exchange.OpenId4VpPresentationServiceTest' :waltid-services:waltid-verifier-api2:test --tests 'id.walt.verifier2.sdjwt.IETFSdJwtVcWithDisclosureVerifier2IntegrationTest' --tests 'id.walt.verifier2.mdocs.PidBirthDateIssuerSignedIntegrityReproTest'`
   - browser E2E artifacts:
-    - SD-JWT transaction flow: `/tmp/waltid-playwright/artifacts/2026-04-09T19-39-35.888Z`
-    - mdoc transaction flow: `/tmp/waltid-playwright/artifacts/2026-04-09T19-39-47.994Z`
+    - SD-JWT transaction flow: `$HOME/.waltid-playwright-artifacts/transaction-data-support--verifier2-portal-dc-sd-jwt--<timestamp>/`
+    - mdoc transaction flow: `$HOME/.waltid-playwright-artifacts/transaction-data-support--verifier2-portal-mso-mdoc--<timestamp>/`
 
 ## Remaining Before Publication
 - Final manual demo recording is still pending and should stay outside git.

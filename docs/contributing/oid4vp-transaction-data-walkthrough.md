@@ -4,6 +4,7 @@
 - Branch: `feat/transaction-data-support`
 - Fork PR: [https://github.com/szijpeter/waltid-identity/pull/4](https://github.com/szijpeter/waltid-identity/pull/4)
 - Base branch: `feat/wallet-openid4vp-v1`
+- Related follow-up branch/PR (split out of PR2 scope): `feat/transaction-data-verifier2-verification-followup` / [PR #6](https://github.com/szijpeter/waltid-identity/pull/6)
 
 ## Current stacked shape
 This branch is stacked on top of task 1 (`feat/wallet-openid4vp-v1`) and contains only the transaction-data-focused feature and hardening changes for task 2.
@@ -119,22 +120,32 @@ This branch completes the feature in four layers:
 
 ## File-by-file walkthrough
 
-### 1. Shared transaction-data utility layer
+### 1. Shared transaction-data package layer
 Files:
-- `waltid-libraries/protocols/waltid-openid4vp/src/commonMain/kotlin/id/walt/verifier/openid/TransactionDataUtils.kt`
+- `waltid-libraries/protocols/waltid-openid4vp/src/commonMain/kotlin/id/walt/verifier/openid/transactiondata/TransactionDataConstants.kt`
+- `waltid-libraries/protocols/waltid-openid4vp/src/commonMain/kotlin/id/walt/verifier/openid/transactiondata/TransactionDataDecoding.kt`
+- `waltid-libraries/protocols/waltid-openid4vp/src/commonMain/kotlin/id/walt/verifier/openid/transactiondata/TransactionDataHashing.kt`
+- `waltid-libraries/protocols/waltid-openid4vp/src/commonMain/kotlin/id/walt/verifier/openid/transactiondata/TransactionDataRequestValidator.kt`
+- `waltid-libraries/protocols/waltid-openid4vp/src/commonMain/kotlin/id/walt/verifier/openid/transactiondata/TransactionDataSelection.kt`
+- `waltid-libraries/protocols/waltid-openid4vp/src/commonMain/kotlin/id/walt/verifier/openid/transactiondata/MdocTransactionDataConvention.kt`
 - `waltid-libraries/protocols/waltid-openid4vp/src/commonMain/kotlin/id/walt/verifier/openid/models/authorization/TransactionDataItem.kt`
-- `waltid-libraries/protocols/waltid-openid4vp/src/commonTest/kotlin/id/walt/verifier/openid/TransactionDataUtilsTest.kt`
+- `waltid-libraries/protocols/waltid-openid4vp/src/commonTest/kotlin/id/walt/verifier/openid/transactiondata/TransactionDataRequestValidatorTest.kt`
+- `waltid-libraries/protocols/waltid-openid4vp/src/commonTest/kotlin/id/walt/verifier/openid/transactiondata/TransactionDataSelectionTest.kt`
+- `waltid-libraries/protocols/waltid-openid4vp/src/commonTest/kotlin/id/walt/verifier/openid/transactiondata/TransactionDataHashingTest.kt`
+- `waltid-libraries/protocols/waltid-openid4vp/src/commonTest/kotlin/id/walt/verifier/openid/transactiondata/MdocTransactionDataConventionTest.kt`
 
 What changed:
-- added the core parsing and validation helper for request-side and response-side transaction-data processing
-- defined the supported type set in one place
+- replaced the previous monolithic utility with topic-focused transaction-data components under `openid.transactiondata`
+- kept shared concerns (constants, decode/encode conventions, selection, request validation, hashing) in one reusable package
+- moved policy-only and wallet-only logic into their owning modules
+- defined the supported type set in shared constants
 - validated:
   - type
   - `credential_ids`
   - `transaction_data_hashes_alg`
   - `require_cryptographic_holder_binding`
   - omission rules when no transaction data was requested
-- added focused tests for valid and invalid cases
+- added focused per-topic tests for valid and invalid cases
 
 Why:
 - the repo needed one shared authority for transaction-data rules instead of duplicating logic in wallet UI, wallet service, and verifier service
@@ -198,26 +209,16 @@ Why:
 Files:
 - `waltid-libraries/protocols/waltid-openid4vp-verifier/src/commonMain/kotlin/id/walt/verifier2/verification2/PresentationVerificationEngine.kt`
 - `waltid-libraries/protocols/waltid-openid4vp-verifier/src/jvmMain/kotlin/id/walt/verifier2/handlers/sessioncreation/VerificationSessionCreator.kt`
-- `waltid-libraries/protocols/waltid-openid4vp-verifier/src/commonMain/kotlin/id/walt/verifier2/verification/Verifier2PresentationValidator.kt`
-- `waltid-libraries/protocols/waltid-openid4vp-verifier/src/commonMain/kotlin/id/walt/verifier2/verification/SdJwtVcPresentationValidator.kt`
-- `waltid-libraries/protocols/waltid-openid4vp-verifier/src/commonMain/kotlin/id/walt/verifier2/verification/MdocPresentationValidator.kt`
-- `waltid-libraries/protocols/waltid-openid4vp-verifier/src/commonMain/kotlin/id/walt/verifier2/verification/W3CPresentationValidator.kt`
 - `waltid-libraries/protocols/waltid-openid4vp-verifier/README.md`
 
 What changed:
 - verifier2 now stores the request transaction data in the session and passes it into verification
 - the live verifier path uses the VP policy architecture
-- older public validator entry points were kept as compatibility shims instead of being removed outright
-- obsolete internal wiring was removed, including:
-  - `Verifier2SessionPresentationValidation.kt`
+- this branch intentionally avoids changes in `id.walt.verifier2.verification`; compatibility-validator transaction-data checks are tracked in follow-up PR #6
 
 Why:
 - we wanted the live verifier architecture to follow the issue guidance
-- but we explicitly avoided breaking public APIs that already existed in the OSS library
-
-That compatibility decision matters:
-- internally, verifier2 uses the new policy-based path
-- externally, previously available validator classes still exist so the branch does not introduce a gratuitous library API break
+- and we keep PR2 scope focused by isolating compatibility-validator package changes in PR6
 
 ### 6. Wallet service integration
 Files:
@@ -227,7 +228,7 @@ Files:
 
 What changed:
 - task-2-specific transaction-data support was wired through the already updated v1 wallet path
-- request validation uses the shared transaction-data utility layer
+- request validation uses the shared transaction-data package layer
 - the later review fixes were kept compatible with task 1:
   - no duplicate `request_uri` resolution
   - strict matching/submission semantics
@@ -325,7 +326,7 @@ Relevant references:
 
 ### 2. Shared transaction-data validation flow
 Request-side and response-side transaction-data rules are centralized in:
-- `waltid-libraries/protocols/waltid-openid4vp/src/commonMain/kotlin/id/walt/verifier/openid/TransactionDataUtils.kt`
+- `waltid-libraries/protocols/waltid-openid4vp/src/commonMain/kotlin/id/walt/verifier/openid/transactiondata/*`
 - `waltid-libraries/protocols/waltid-openid4vp/src/commonMain/kotlin/id/walt/verifier/openid/models/authorization/TransactionDataItem.kt`
 
 This layer is responsible for:
@@ -335,7 +336,7 @@ This layer is responsible for:
 - enforcing `require_cryptographic_holder_binding == true` where required
 - validating response-side transaction-data hash algorithm semantics
 
-This shared layer is important because wallet, verifier, and demo flows all need the same interpretation rules.
+This shared layer is important because wallet, verifier, and demo flows all need the same interpretation rules, while policy-specific and wallet-specific logic stays local to those modules.
 
 ### 3. Wallet resolution and display flow
 The wallet uses the OpenID4VP 1.0 request-resolution path introduced by PR 1:
@@ -468,7 +469,7 @@ That is the complete feature behavior the task asked for.
 ### Focused backend and library checks
 ```bash
 ./gradlew --no-build-cache \
-  :waltid-libraries:protocols:waltid-openid4vp:jvmTest --tests 'id.walt.verifier.openid.TransactionDataUtilsTest' \
+  :waltid-libraries:protocols:waltid-openid4vp:jvmTest --tests 'id.walt.verifier.openid.transactiondata.*' \
   :waltid-libraries:credentials:waltid-verification-policies2-vp:jvmTest --tests 'id.walt.policies2.vp.policies.TransactionDataHashCheckSdJwtVPPolicyTest' --tests 'id.walt.policies2.vp.policies.TransactionDataMdocVpPolicyTest' \
   :waltid-services:waltid-verifier-api2:test --tests 'id.walt.verifier2.sdjwt.IETFSdJwtVcWithDisclosureVerifier2IntegrationTest' --tests 'id.walt.verifier2.mdocs.PidBirthDateIssuerSignedIntegrityReproTest'
 ```
@@ -484,16 +485,16 @@ Validated with a local Playwright harness against the branch-backed Docker stack
 - SD-JWT transaction flow
 - mdoc transaction flow
 
-Latest successful artifact sets:
-- SD-JWT: `/tmp/waltid-playwright/artifacts/2026-04-09T19-39-35.888Z`
-- mdoc: `/tmp/waltid-playwright/artifacts/2026-04-09T19-39-47.994Z`
+Latest successful artifact sets are persisted under:
+- `$HOME/.waltid-playwright-artifacts/transaction-data-support--verifier2-portal-dc-sd-jwt--<timestamp>/`
+- `$HOME/.waltid-playwright-artifacts/transaction-data-support--verifier2-portal-mso-mdoc--<timestamp>/`
 
 ### Additional post-restack verification
 After restacking the branch onto the latest task-1 head, the following focused validation was rerun to confirm the shared wallet path still compiles and the transaction-data validation path still behaves correctly:
 
 ```bash
 ./gradlew --no-build-cache \
-  :waltid-libraries:protocols:waltid-openid4vp:jvmTest --tests 'id.walt.verifier.openid.TransactionDataUtilsTest' \
+  :waltid-libraries:protocols:waltid-openid4vp:jvmTest --tests 'id.walt.verifier.openid.transactiondata.*' \
   :waltid-libraries:credentials:waltid-verification-policies2-vp:jvmTest --tests 'id.walt.policies2.vp.policies.TransactionDataHashCheckSdJwtVPPolicyTest' --tests 'id.walt.policies2.vp.policies.TransactionDataMdocVpPolicyTest' \
   :waltid-services:waltid-wallet-api:test --tests 'id.walt.webwallet.service.exchange.OpenId4VpPresentationServiceTest'
 ```
@@ -502,7 +503,7 @@ After the final restack onto the latest PR1 head, the broader focused confidence
 
 ```bash
 ./gradlew --no-build-cache --no-daemon \
-  :waltid-libraries:protocols:waltid-openid4vp:jvmTest --tests 'id.walt.verifier.openid.TransactionDataUtilsTest' \
+  :waltid-libraries:protocols:waltid-openid4vp:jvmTest --tests 'id.walt.verifier.openid.transactiondata.*' \
   :waltid-libraries:credentials:waltid-verification-policies2-vp:jvmTest --tests 'id.walt.policies2.vp.policies.TransactionDataHashCheckSdJwtVPPolicyTest' --tests 'id.walt.policies2.vp.policies.TransactionDataMdocVpPolicyTest' \
   :waltid-services:waltid-wallet-api:test --tests 'id.walt.webwallet.service.exchange.OpenId4VpPresentationServiceTest' \
   :waltid-services:waltid-verifier-api2:test --tests 'id.walt.verifier2.sdjwt.IETFSdJwtVcWithDisclosureVerifier2IntegrationTest' --tests 'id.walt.verifier2.mdocs.PidBirthDateIssuerSignedIntegrityReproTest'
