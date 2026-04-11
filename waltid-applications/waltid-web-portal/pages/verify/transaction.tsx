@@ -383,9 +383,7 @@ function buildCredentialQuery(presentationFormat: PresentationFormat, issuerBase
   return {
     id: "payment_credential",
     format: "dc+sd-jwt",
-    meta: {
-      vct_values: [`${issuerBaseUrl}/identity_credential`],
-    },
+    meta: {},
     claims: [
       { path: ["given_name"] },
       { path: ["family_name"] },
