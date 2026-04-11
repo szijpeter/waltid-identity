@@ -24,6 +24,7 @@ object Verifier2PresentationValidator {
         expectedNonce: String,
         responseUri: String?,
         originalClaimsQuery: List<ClaimsQuery>?,
+        expectedTransactionData: List<String>? = null,
 
         isDcApi: Boolean,
         isEncrypted: Boolean,
@@ -41,7 +42,8 @@ object Verifier2PresentationValidator {
                 sdJwtPresentationString = presentationString,
                 expectedAudience = expectedAudience,
                 expectedNonce = expectedNonce,
-                originalClaimsQuery = originalClaimsQuery
+                originalClaimsQuery = originalClaimsQuery,
+                expectedTransactionData = expectedTransactionData,
             )
 
             CredentialFormat.MSO_MDOC -> MdocPresentationValidator.validateMsoMdocPresentation(
@@ -53,6 +55,7 @@ object Verifier2PresentationValidator {
                 isDcApi = isDcApi,
                 isEncrypted = isEncrypted,
                 jwkThumbprint = jwkThumbprint,
+                expectedTransactionData = expectedTransactionData,
             )
 
             // Future: Implement other formats (e.g. LDP)

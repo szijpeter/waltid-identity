@@ -6,8 +6,10 @@ import id.walt.credentials.representations.X5CCertificateString
 import id.walt.credentials.representations.X5CList
 import id.walt.credentials.signatures.CoseCredentialSignature
 import id.walt.crypto.keys.DirectSerializedKey
+import id.walt.mdoc.parser.MdocParser
 import id.walt.mdoc.verification.MdocVerificationContext
 import id.walt.mdoc.verification.MdocVerifier
+import id.walt.verifier.openid.TransactionDataUtils
 import id.walt.verifier2.verification.Verifier2PresentationValidator.PresentationValidationResult
 import io.github.oshai.kotlinlogging.KotlinLogging
 import kotlinx.serialization.ExperimentalSerializationApi
@@ -27,7 +29,8 @@ object MdocPresentationValidator {
 
         isDcApi: Boolean = false,
         isEncrypted: Boolean = false,
-        jwkThumbprint: String? = null
+        jwkThumbprint: String? = null,
+        expectedTransactionData: List<String>? = null,
     ): Result<PresentationValidationResult> = runCatching {
         // responseUri is not required for DC API, only for Redirect
         if (!isDcApi) {
@@ -59,6 +62,10 @@ object MdocPresentationValidator {
         }*/
 
         require(verificationResult.valid) { "Mdoc verification failed: ${verificationResult.errors}" }
+        validateTransactionData(
+            document = MdocParser.parseToDocument(mdocBase64UrlString),
+            expectedTransactionData = expectedTransactionData,
+        )
 
         val docType = verificationResult.docType
 
@@ -85,6 +92,40 @@ object MdocPresentationValidator {
             presentation = MsoMdocPresentation(mdocsCredential),
             credentials = listOf(mdocsCredential)
         )
+    }
+
+    private fun validateTransactionData(
+        document: id.walt.mdoc.objects.document.Document,
+        expectedTransactionData: List<String>?,
+    ) {
+        val embeddedTransactionData = TransactionDataUtils.extractMdocEmbeddedTransactionData(
+            deviceSignedItems = document.deviceSigned
+                ?.namespaces
+                ?.value
+                ?.entries
+                ?.get(TransactionDataUtils.MDOC_DEVICE_SIGNED_NAMESPACE)
+                ?.entries
+                ?.associate { it.key to it.value }
+                .orEmpty(),
+        )
+
+        val expectedItems = expectedTransactionData.orEmpty()
+        if (expectedItems.isEmpty()) {
+            require(embeddedTransactionData.isEmpty()) {
+                "mdoc transaction_data entries must be omitted when transaction_data is not requested"
+            }
+            return
+        }
+
+        val algorithm = TransactionDataUtils.resolveHashAlgorithm(
+            TransactionDataUtils.decodeTransactionDataList(expectedItems),
+        ) ?: TransactionDataUtils.DEFAULT_HASH_ALGORITHM
+        val expectedHashes = TransactionDataUtils.calculateTransactionDataHashes(expectedItems, algorithm)
+        val embeddedHashes = TransactionDataUtils.calculateTransactionDataHashes(embeddedTransactionData, algorithm)
+
+        require(embeddedHashes == expectedHashes) {
+            "mdoc transaction_data does not match the requested transaction_data"
+        }
     }
 
 }
