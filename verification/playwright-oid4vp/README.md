@@ -48,7 +48,16 @@ docker compose \
   - runs verifier2 API matrix over request shapes and formats (`dc+sd-jwt`, `jwt_vc_json` by default)
   - optionally probes `request_uri_method=post` support and records `SKIPPED_UNSUPPORTED` if endpoint-level POST retrieval is not supported
 - `pr2` suite:
-  - keeps the portal-based verifier2 transaction flow (`/verify/transaction`)
+  - runs legacy verifier baseline (`JWT + W3C VC`) for backward compatibility
+  - runs portal-based verifier2 transaction flow (`/verify/transaction`) for:
+    - `dc+sd-jwt`
+    - `mso_mdoc`
+  - runs verifier2 API matrix with transaction-data enabled for request-shape coverage:
+    - `direct`
+    - `request_uri_get`
+    - `request_object_unsigned`
+    - `request_object_signed`
+    - optional probe: `request_uri_post`
   - artifact branch tag defaults to `transaction-data-support`
 
 ## Install
@@ -152,6 +161,11 @@ CHECK_REQUEST_URI_POST=true
 REQUIRE_REQUEST_URI_POST=false
 PR1_SIGNED_CLIENT_ID=x509_san_dns:verifier.example.com
 ENABLE_LEGACY_SDJWT_PROBE=false
+ENABLE_TRANSACTION_DATA=false
+
+PR2_INCLUDE_API_MATRIX=true
+PR2_MATRIX_FORMATS=dc+sd-jwt,mso_mdoc
+PR2_REQUEST_SHAPES=direct,request_uri_get,request_object_unsigned,request_object_signed
 ```
 
 ## Failure expectations

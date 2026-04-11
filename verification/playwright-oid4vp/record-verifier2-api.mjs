@@ -24,6 +24,7 @@ const requestShape = process.env.OID4VP_REQUEST_SHAPE ?? "direct";
 const presentationFormat = process.env.PRESENTATION_FORMAT ?? "dc+sd-jwt";
 const signedClientId = process.env.PR1_SIGNED_CLIENT_ID ?? "x509_san_dns:verifier.example.com";
 const requireRequestUriPost = envBool("REQUIRE_REQUEST_URI_POST", false);
+const enableTransactionData = envBool("ENABLE_TRANSACTION_DATA", false);
 
 const supportedRequestShapes = new Set([
   "direct",
@@ -76,7 +77,12 @@ async function main() {
     await wallet.page.goto(`${defaults.walletBaseUrl}/wallet/${walletId}`, { waitUntil: "networkidle" });
     await saveScreenshot(wallet.page, artifactDir, "wallet", "02-wallet-credential-available.png");
 
-    const setup = buildVerifier2SessionSetup({ presentationFormat, requestShape, signedClientId });
+    const setup = buildVerifier2SessionSetup({
+      presentationFormat,
+      requestShape,
+      signedClientId,
+      enableTransactionData,
+    });
     const createSessionResponse = await api.post(`${defaults.verifier2BaseUrl}/verification-session/create`, {
       data: setup,
     });
@@ -176,7 +182,7 @@ async function main() {
     const walletLaunchUrl = buildWalletInitiatePresentationUrl(defaults.walletBaseUrl, walletId, walletRequestUrl);
     await wallet.page.goto(walletLaunchUrl, { waitUntil: "networkidle" });
     await saveScreenshot(wallet.page, artifactDir, "wallet", "03-wallet-presentation-request.png");
-    await openAndPresent(wallet.page, { expectTransactionDetails: false });
+    await openAndPresent(wallet.page, { expectTransactionDetails: enableTransactionData });
     await saveScreenshot(wallet.page, artifactDir, "wallet", "04-wallet-after-presentation.png");
 
     const terminal = await waitForVerifier2TerminalSessionStatus(api, verifier2SessionId, defaults);
@@ -216,6 +222,7 @@ async function main() {
       verifier2Status: finalSessionInfo.status,
       requestUriPostSupported,
       requestUriPostProbeStatus,
+      transactionDataEnabled: enableTransactionData,
       requestMode: finalSessionInfo.requestMode ?? null,
       signedAuthorizationRequestPresent: Boolean(finalSessionInfo.signedAuthorizationRequestJwt),
     };
@@ -235,6 +242,7 @@ async function main() {
       verifier2SessionId,
       requestShape,
       presentationFormat,
+      transactionDataEnabled: enableTransactionData,
       error: String(error),
     };
     try {
@@ -260,7 +268,7 @@ async function main() {
   }
 }
 
-function buildVerifier2SessionSetup({ presentationFormat, requestShape, signedClientId }) {
+function buildVerifier2SessionSetup({ presentationFormat, requestShape, signedClientId, enableTransactionData }) {
   return {
     flow_type: "cross_device",
     core_flow: {
@@ -268,6 +276,13 @@ function buildVerifier2SessionSetup({ presentationFormat, requestShape, signedCl
       signed_request: requestShape === "request_object_signed",
       ...(requestShape === "request_object_signed" ? { clientId: signedClientId } : {}),
     },
+    ...(enableTransactionData
+      ? {
+          openid: {
+            transactionData: [buildEncodedTransactionData(presentationFormat)],
+          },
+        }
+      : {}),
   };
 }
 
@@ -399,6 +414,26 @@ function envBool(name, fallback) {
   const value = process.env[name];
   if (value == null) return fallback;
   return ["1", "true", "yes", "on"].includes(value.toLowerCase());
+}
+
+function buildEncodedTransactionData(presentationFormat) {
+  const credentialId = presentationFormat === "mso_mdoc" ? "my_mdl" : "my_pid";
+  const payload = {
+    type: "org.waltid.transaction-data.payment-authorization",
+    credential_ids: [credentialId],
+    require_cryptographic_holder_binding: true,
+    amount: "42.00",
+    currency: "EUR",
+    payee: "ACME Corp",
+    reference: "INV-2026-042",
+    ...(presentationFormat === "dc+sd-jwt" ? { transaction_data_hashes_alg: ["sha-256"] } : {}),
+  };
+
+  return Buffer.from(JSON.stringify(payload))
+    .toString("base64")
+    .replaceAll("=", "")
+    .replaceAll("+", "-")
+    .replaceAll("/", "_");
 }
 
 main().catch((error) => {

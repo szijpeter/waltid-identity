@@ -339,7 +339,7 @@ export async function openAndPresent(page, { expectTransactionDetails = false } 
     );
   }
   if (expectTransactionDetails) {
-    await page.locator("text=Transaction details").waitFor();
+    await page.getByText("Transaction details", { exact: true }).first().waitFor();
   }
   const disclosureCheckbox = page.getByRole("checkbox").first();
   if (await disclosureCheckbox.count()) {
