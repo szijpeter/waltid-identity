@@ -207,25 +207,33 @@ export async function expectOk(response, label) {
 
 export async function registerAndLogin(api, config = defaults) {
   const account = randomAccount();
-  await expectOk(
-    await api.post(`${config.walletApiBaseUrl}/auth/register`, {
-      data: {
-        name: account.name,
-        email: account.email,
-        password: account.password,
-        type: "email",
-      },
-    }),
+  await withRetry(
+    async () =>
+      expectOk(
+        await api.post(`${config.walletApiBaseUrl}/auth/register`, {
+          data: {
+            name: account.name,
+            email: account.email,
+            password: account.password,
+            type: "email",
+          },
+        }),
+        "register account",
+      ),
     "register account",
   );
-  await expectOk(
-    await api.post(`${config.walletApiBaseUrl}/auth/login`, {
-      data: {
-        email: account.email,
-        password: account.password,
-        type: "email",
-      },
-    }),
+  await withRetry(
+    async () =>
+      expectOk(
+        await api.post(`${config.walletApiBaseUrl}/auth/login`, {
+          data: {
+            email: account.email,
+            password: account.password,
+            type: "email",
+          },
+        }),
+        "login account",
+      ),
     "login account",
   );
   return account;
@@ -668,4 +676,20 @@ function escapeHtml(value) {
     .replaceAll(">", "&gt;")
     .replaceAll('"', "&quot;")
     .replaceAll("'", "&#39;");
+}
+
+async function withRetry(action, label, { attempts = 24, delayMs = 2500 } = {}) {
+  let latestError = null;
+  for (let attempt = 1; attempt <= attempts; attempt += 1) {
+    try {
+      return await action();
+    } catch (error) {
+      latestError = error;
+      if (attempt === attempts) break;
+      console.warn(`[retry] ${label} attempt ${attempt}/${attempts} failed: ${String(error)}`);
+      await sleep(delayMs);
+    }
+  }
+
+  throw latestError ?? new Error(`${label} failed`);
 }

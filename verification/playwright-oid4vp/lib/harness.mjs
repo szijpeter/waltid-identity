@@ -111,7 +111,12 @@ export function recreateHarnessStack() {
     cwd: env.repoRoot,
     inheritStdio: true,
   });
-  return requireHarnessPreflight({ requireRunningServices: true });
+  const preflight = requireHarnessPreflight({ requireRunningServices: true });
+  const readiness = waitForServiceReadiness();
+  return {
+    ...preflight,
+    readiness,
+  };
 }
 
 export function collectRuntimeProvenance() {
@@ -322,4 +327,68 @@ function slugify(value) {
 
 function escapeRegExp(value) {
   return String(value).replaceAll(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function waitForServiceReadiness() {
+  const timeoutMs = Number(process.env.HARNESS_SERVICE_READY_TIMEOUT_MS ?? 180000);
+  const intervalMs = Number(process.env.HARNESS_SERVICE_READY_INTERVAL_MS ?? 2000);
+  const checks = [
+    {
+      name: "wallet-api",
+      url: process.env.HARNESS_WALLET_API_READY_URL ?? "http://localhost:7001/wallet-api/swagger",
+    },
+    {
+      name: "issuer-api",
+      url: process.env.HARNESS_ISSUER_API_READY_URL ?? "http://localhost:7002/swagger",
+    },
+    {
+      name: "verifier-api2",
+      url: process.env.HARNESS_VERIFIER2_READY_URL ?? "http://localhost:7304/swagger",
+    },
+  ];
+
+  const startedAt = Date.now();
+  const checkResults = [];
+
+  for (const check of checks) {
+    const result = waitForHttpSuccess(check.url, timeoutMs, intervalMs);
+    checkResults.push({
+      name: check.name,
+      url: check.url,
+      attempts: result.attempts,
+      elapsedMs: result.elapsedMs,
+    });
+  }
+
+  return {
+    checkedAt: new Date().toISOString(),
+    totalElapsedMs: Date.now() - startedAt,
+    checks: checkResults,
+  };
+}
+
+function waitForHttpSuccess(url, timeoutMs, intervalMs) {
+  const startedAt = Date.now();
+  let attempts = 0;
+
+  while (Date.now() - startedAt < timeoutMs) {
+    attempts += 1;
+    const probe = runCommand("curl", ["--silent", "--show-error", "--fail", "--output", "/dev/null", url], {
+      allowFailure: true,
+    });
+    if (probe.status === 0) {
+      return {
+        attempts,
+        elapsedMs: Date.now() - startedAt,
+      };
+    }
+    sleep(intervalMs);
+  }
+
+  throw new Error(`Timed out waiting for readiness URL: ${url}`);
+}
+
+function sleep(ms) {
+  const timeout = Number.isFinite(ms) ? Math.max(0, Math.floor(ms)) : 0;
+  Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, timeout);
 }
