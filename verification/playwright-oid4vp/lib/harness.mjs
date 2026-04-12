@@ -335,15 +335,18 @@ function waitForServiceReadiness() {
   const checks = [
     {
       name: "wallet-api",
-      url: process.env.HARNESS_WALLET_API_READY_URL ?? "http://localhost:7001/wallet-api/swagger",
+      url: process.env.HARNESS_WALLET_API_READY_URL ?? "http://localhost:7001/wallet-api/auth/register",
+      acceptedStatusCodes: [405],
     },
     {
       name: "issuer-api",
-      url: process.env.HARNESS_ISSUER_API_READY_URL ?? "http://localhost:7002/swagger",
+      url: process.env.HARNESS_ISSUER_API_READY_URL ?? "http://localhost:7002/openid4vc/sdjwt/issue",
+      acceptedStatusCodes: [405],
     },
     {
       name: "verifier-api2",
-      url: process.env.HARNESS_VERIFIER2_READY_URL ?? "http://localhost:7304/swagger",
+      url: process.env.HARNESS_VERIFIER2_READY_URL ?? "http://localhost:7304/verification-session/create",
+      acceptedStatusCodes: [405],
     },
   ];
 
@@ -351,7 +354,7 @@ function waitForServiceReadiness() {
   const checkResults = [];
 
   for (const check of checks) {
-    const result = waitForHttpSuccess(check.url, timeoutMs, intervalMs);
+    const result = waitForHttpSuccess(check.url, timeoutMs, intervalMs, check.acceptedStatusCodes);
     checkResults.push({
       name: check.name,
       url: check.url,
@@ -367,19 +370,23 @@ function waitForServiceReadiness() {
   };
 }
 
-function waitForHttpSuccess(url, timeoutMs, intervalMs) {
+function waitForHttpSuccess(url, timeoutMs, intervalMs, acceptedStatusCodes = []) {
   const startedAt = Date.now();
   let attempts = 0;
 
   while (Date.now() - startedAt < timeoutMs) {
     attempts += 1;
-    const probe = runCommand("curl", ["--silent", "--show-error", "--fail", "--output", "/dev/null", url], {
+    const probe = runCommand("curl", ["--silent", "--show-error", "--output", "/dev/null", "--write-out", "%{http_code}", url], {
       allowFailure: true,
     });
-    if (probe.status === 0) {
+    const statusCode = Number.parseInt(probe.stdout.trim(), 10);
+    const inSuccessRange = statusCode >= 200 && statusCode < 400;
+    const explicitlyAccepted = acceptedStatusCodes.includes(statusCode);
+    if (inSuccessRange || explicitlyAccepted) {
       return {
         attempts,
         elapsedMs: Date.now() - startedAt,
+        statusCode,
       };
     }
     sleep(intervalMs);
