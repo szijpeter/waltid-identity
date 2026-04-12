@@ -1,7 +1,7 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
-import { defaults, timestamp } from "./lib/common.mjs";
+import { defaults, recreateHarnessStack, requireHarnessPreflight, timestamp } from "./lib/common.mjs";
 
 const artifactBranchTag = process.env.ARTIFACT_BRANCH_TAG ?? "wallet-openid4vp-v1";
 const matrixFormats = parseCsv(process.env.PR1_MATRIX_FORMATS ?? "dc+sd-jwt,jwt_vc_json");
@@ -15,8 +15,13 @@ const enableLegacySdJwtProbe = envBool("ENABLE_LEGACY_SDJWT_PROBE", true);
 const enableLegacySdJwtSignatureProbe = envBool("ENABLE_LEGACY_SDJWT_SIGNATURE_PROBE", true);
 const requireLegacySdJwtProbe = envBool("REQUIRE_LEGACY_SDJWT_PROBE", false);
 const legacySdJwtLabel = process.env.LEGACY_FORMAT_SD_JWT_LABEL ?? "SD-JWT VC";
+const recreateStack = envBool("HARNESS_RECREATE_STACK", true);
 
 async function main() {
+  const preflight = recreateStack
+    ? recreateHarnessStack()
+    : requireHarnessPreflight({ requireRunningServices: true });
+
   const summaryDir = path.join(
     defaults.artifactsBaseDir,
     `${slugify(artifactBranchTag)}--pr1-matrix-summary--${timestamp()}`,
@@ -100,6 +105,7 @@ async function main() {
       enableLegacySdJwtSignatureProbe,
       requireLegacySdJwtProbe,
     },
+    preflight,
     results,
     mandatoryFailures: mandatoryFailures.map(({ id, status, exitCode, error }) => ({
       id,

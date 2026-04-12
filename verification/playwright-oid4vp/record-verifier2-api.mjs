@@ -13,6 +13,7 @@ import {
   loginInBrowser,
   makeArtifactDir,
   openAndPresent,
+  requireHarnessPreflight,
   registerAndLogin,
   renderVerifier2HarnessPanel,
   saveScreenshot,
@@ -35,6 +36,7 @@ const supportedRequestShapes = new Set([
 ]);
 
 async function main() {
+  const preflight = requireHarnessPreflight({ requireRunningServices: true });
   if (!supportedRequestShapes.has(requestShape)) {
     throw new Error(
       `Unsupported OID4VP_REQUEST_SHAPE "${requestShape}". Expected one of: ${Array.from(supportedRequestShapes).join(", ")}`,
@@ -126,6 +128,7 @@ async function main() {
         requestUriPostSupported,
         requestUriPostProbeStatus,
         reason: "request_uri_method=post not supported by verifier2 /request endpoint",
+        preflight,
       };
       await renderVerifier2HarnessPanel(verifier.page, {
         phase: "Skipped unsupported request_uri_method=post",
@@ -225,6 +228,7 @@ async function main() {
       transactionDataEnabled: enableTransactionData,
       requestMode: finalSessionInfo.requestMode ?? null,
       signedAuthorizationRequestPresent: Boolean(finalSessionInfo.signedAuthorizationRequestJwt),
+      preflight,
     };
 
     console.log(`Artifacts saved in ${artifactDir}`);
@@ -244,6 +248,7 @@ async function main() {
       presentationFormat,
       transactionDataEnabled: enableTransactionData,
       error: String(error),
+      preflight,
     };
     try {
       await renderVerifier2HarnessPanel(verifier.page, {
@@ -320,6 +325,17 @@ function buildDcqlQuery(presentationFormat) {
           meta: {
             doctype_value: "org.iso.18013.5.1.mDL",
           },
+          claims: [
+            {
+              path: ["org.iso.18013.5.1", "given_name"],
+            },
+            {
+              path: ["org.iso.18013.5.1", "family_name"],
+            },
+            {
+              path: ["org.iso.18013.5.1", "issuing_country"],
+            },
+          ],
         },
       ],
     };

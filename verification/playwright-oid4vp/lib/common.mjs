@@ -1,6 +1,12 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 import { chromium, request as playwrightRequest } from "playwright";
+import {
+  collectRuntimeProvenance,
+  recreateHarnessStack,
+  requireHarnessPreflight,
+  resolveHarnessEnvironment,
+} from "./harness.mjs";
 
 export const defaults = {
   artifactBranchTag: process.env.ARTIFACT_BRANCH_TAG ?? "unknown-branch",
@@ -13,10 +19,13 @@ export const defaults = {
   artifactsBaseDir:
     process.env.PLAYWRIGHT_ARTIFACTS_DIR ??
     path.join(process.env.HOME ?? process.cwd(), ".waltid-playwright-artifacts"),
-  headless: envBool("HEADLESS", false),
-  slowMo: Number(process.env.SLOW_MO ?? 250),
+  headless: envBool("HEADLESS", true),
+  slowMo: Number(process.env.SLOW_MO ?? 0),
   timeoutMs: Number(process.env.TIMEOUT_MS ?? 180000),
+  composeProjectName: resolveHarnessEnvironment().composeProjectName,
 };
+
+export { collectRuntimeProvenance, recreateHarnessStack, requireHarnessPreflight, resolveHarnessEnvironment };
 
 export const issuerKey = {
   type: "jwk",
@@ -610,11 +619,22 @@ export async function finalizeRun(artifactDir, browserContexts, metadata) {
     }
   }
 
-  await fs.writeFile(
-    path.join(artifactDir, "run-metadata.json"),
-    JSON.stringify(metadata, null, 2),
-    "utf8",
-  );
+  let provenance = null;
+  try {
+    provenance = collectRuntimeProvenance();
+  } catch (error) {
+    provenance = {
+      capturedAt: new Date().toISOString(),
+      error: String(error),
+    };
+  }
+
+  const enrichedMetadata = {
+    ...metadata,
+    provenance,
+  };
+
+  await fs.writeFile(path.join(artifactDir, "run-metadata.json"), JSON.stringify(enrichedMetadata, null, 2), "utf8");
 }
 
 export function attachConsoleLogging(page, actor) {

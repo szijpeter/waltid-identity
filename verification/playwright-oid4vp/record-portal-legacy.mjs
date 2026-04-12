@@ -13,6 +13,7 @@ import {
   makeArtifactDir,
   openAndPresent,
   parseStateFromRequestUrl,
+  requireHarnessPreflight,
   registerAndLogin,
   saveScreenshot,
   waitForLegacyVerificationResult,
@@ -26,6 +27,7 @@ const disableSignaturePolicy = !["0", "false", "no"].includes(
 );
 
 async function main() {
+  const preflight = requireHarnessPreflight({ requireRunningServices: true });
   const artifactDir = await makeArtifactDir("legacy-verifier-portal");
   const api = await apiContext();
   const wallet = await launchBrowserContext(artifactDir, "wallet", defaults);
@@ -170,6 +172,7 @@ async function main() {
       legacySessionId,
       claimedCredentials: claimed.length,
       legacyVerificationResult: legacyResult.verificationResult,
+      preflight,
     };
 
     console.log(`Artifacts saved in ${artifactDir}`);
@@ -186,6 +189,7 @@ async function main() {
       walletCredentialCount,
       legacySessionId,
       error: String(error),
+      preflight,
     };
     console.log(`RUN_STATUS:${metadata.status}`);
     console.log(`RUN_ARTIFACT_DIR:${artifactDir}`);

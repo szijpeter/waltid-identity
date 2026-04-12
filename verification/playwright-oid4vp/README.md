@@ -12,10 +12,12 @@ Run the target stack from the branch you want to validate (`main`, PR1, PR2, etc
 Bring up the local stack with the harness override:
 
 ```bash
+export HARNESS_COMPOSE_PROJECT=waltid-oid4vp-$(basename "$PWD")
 docker compose \
+  -p "$HARNESS_COMPOSE_PROJECT" \
   -f docker-compose/docker-compose.yaml \
   -f verification/playwright-oid4vp/docker-compose.override.yaml \
-  up -d --build
+  up -d --build caddy postgres wallet-api issuer-api verifier-api verifier-api2 web-portal waltid-demo-wallet waltid-dev-wallet
 ```
 
 ## Scenario model
@@ -84,6 +86,8 @@ npm run record:suite:pr2
 INCLUDE_MDOC=true npm run record:suite:pr1:portal
 ```
 
+Suite runs recreate the compose stack by default (`HARNESS_RECREATE_STACK=true`) and run a strict preflight before executing scenarios. Set `HARNESS_RECREATE_STACK=false` only if you intentionally prepared the stack yourself.
+
 Compatibility aliases:
 
 ```bash
@@ -115,6 +119,10 @@ Each run contains:
   - `screenshots/wallet/*.png`
   - `videos/wallet/*.webm`
 - `run-metadata.json`
+  - includes provenance guardrails:
+    - active git branch/SHA/repo root
+    - compose project/config context
+    - container and image IDs for `wallet-api`, `verifier-api`, `verifier-api2`, `web-portal`
 
 The run flow now explicitly verifies wallet credential presence via wallet-api before the presentation step.
 
@@ -135,10 +143,12 @@ The harness-specific Caddy override in this directory is configured with this se
 ## Useful environment variables
 
 ```bash
-HEADLESS=true
-SLOW_MO=0
+HEADLESS=true  # default
+SLOW_MO=0      # default
 TIMEOUT_MS=180000
 PLAYWRIGHT_ARTIFACTS_DIR=/absolute/path/for/artifacts
+HARNESS_COMPOSE_PROJECT=waltid-oid4vp-waltid-harness
+HARNESS_RECREATE_STACK=true
 
 PORTAL_BASE_URL=http://localhost:7102
 WALLET_BASE_URL=http://localhost:7101

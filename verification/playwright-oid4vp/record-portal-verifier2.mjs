@@ -14,6 +14,7 @@ import {
   loginInBrowser,
   makeArtifactDir,
   openAndPresent,
+  requireHarnessPreflight,
   registerAndLogin,
   saveScreenshot,
   waitForVerifier2TerminalSessionStatus,
@@ -24,6 +25,7 @@ const presentationFormat = process.env.PRESENTATION_FORMAT ?? "dc+sd-jwt";
 const isMdoc = presentationFormat === "mso_mdoc";
 
 async function main() {
+  const preflight = requireHarnessPreflight({ requireRunningServices: true });
   const artifactDir = await makeArtifactDir(`verifier2-portal-${presentationFormat.replace("+", "-")}`);
   const api = await apiContext();
   const wallet = await launchBrowserContext(artifactDir, "wallet", defaults);
@@ -109,6 +111,7 @@ async function main() {
       presentationFormat,
       claimedCredentials: claimed.length,
       verifier2Status: finalSessionInfo.status,
+      preflight,
     };
 
     console.log(`Artifacts saved in ${artifactDir}`);
@@ -126,6 +129,7 @@ async function main() {
       verifier2SessionId,
       presentationFormat,
       error: String(error),
+      preflight,
     };
     console.log(`RUN_STATUS:${metadata.status}`);
     console.log(`RUN_ARTIFACT_DIR:${artifactDir}`);

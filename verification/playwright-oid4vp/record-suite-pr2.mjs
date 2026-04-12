@@ -1,7 +1,7 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
-import { defaults, timestamp } from "./lib/common.mjs";
+import { defaults, recreateHarnessStack, requireHarnessPreflight, timestamp } from "./lib/common.mjs";
 
 const artifactBranchTag = process.env.ARTIFACT_BRANCH_TAG ?? "transaction-data-support";
 const includeMdocPortal = envBool("INCLUDE_MDOC", true);
@@ -13,8 +13,13 @@ const baseShapes = parseCsv(
 );
 const checkRequestUriPost = envBool("CHECK_REQUEST_URI_POST", true);
 const requireRequestUriPost = envBool("REQUIRE_REQUEST_URI_POST", false);
+const recreateStack = envBool("HARNESS_RECREATE_STACK", true);
 
 async function main() {
+  const preflight = recreateStack
+    ? recreateHarnessStack()
+    : requireHarnessPreflight({ requireRunningServices: true });
+
   const summaryDir = path.join(
     defaults.artifactsBaseDir,
     `${slugify(artifactBranchTag)}--pr2-matrix-summary--${timestamp()}`,
@@ -96,6 +101,7 @@ async function main() {
       checkRequestUriPost,
       requireRequestUriPost,
     },
+    preflight,
     results,
     mandatoryFailures: mandatoryFailures.map(({ id, status, exitCode, error }) => ({
       id,
