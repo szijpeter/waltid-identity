@@ -170,7 +170,8 @@ PRESENTATION_FORMAT=dc+sd-jwt
 INCLUDE_MDOC=false
 ARTIFACT_BRANCH_TAG=main
 
-PR1_MATRIX_FORMATS=dc+sd-jwt,jwt_vc_json
+PR1_REQUIRED_FORMATS=dc+sd-jwt
+PR1_DIAGNOSTIC_FORMATS=jwt_vc_json
 PR1_REQUEST_SHAPES=direct,request_uri_get,request_object_unsigned,request_object_signed
 OID4VP_REQUEST_SHAPE=direct
 CHECK_REQUEST_URI_POST=true

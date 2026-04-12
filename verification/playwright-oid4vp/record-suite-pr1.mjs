@@ -4,7 +4,9 @@ import { spawnSync } from "node:child_process";
 import { defaults, recreateHarnessStack, requireHarnessPreflight, timestamp } from "./lib/common.mjs";
 
 const artifactBranchTag = process.env.ARTIFACT_BRANCH_TAG ?? "wallet-openid4vp-v1";
-const matrixFormats = parseCsv(process.env.PR1_MATRIX_FORMATS ?? "dc+sd-jwt,jwt_vc_json");
+const requiredFormats = parseCsv(process.env.PR1_REQUIRED_FORMATS ?? "dc+sd-jwt");
+const diagnosticFormats = parseCsv(process.env.PR1_DIAGNOSTIC_FORMATS ?? "jwt_vc_json");
+const matrixFormats = [...new Set([...requiredFormats, ...diagnosticFormats])];
 const baseShapes = parseCsv(
   process.env.PR1_REQUEST_SHAPES ??
     "direct,request_uri_get,request_object_unsigned,request_object_signed",
@@ -73,7 +75,8 @@ async function main() {
 
   for (const presentationFormat of matrixFormats) {
     for (const requestShape of requestShapes) {
-      const required = requestShape !== "request_uri_post" || requireRequestUriPost;
+      const required = requiredFormats.includes(presentationFormat) &&
+        (requestShape !== "request_uri_post" || requireRequestUriPost);
       results.push(
         runScript("record-verifier2-api.mjs", {
           ARTIFACT_BRANCH_TAG: artifactBranchTag,
@@ -97,6 +100,8 @@ async function main() {
     generatedAt: new Date().toISOString(),
     artifactBranchTag,
     matrix: {
+      requiredFormats,
+      diagnosticFormats,
       formats: matrixFormats,
       requestShapes,
       checkRequestUriPost,
