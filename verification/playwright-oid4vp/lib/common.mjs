@@ -44,7 +44,8 @@ export const issuerDid =
 export const sdJwtIssuancePayload = {
   issuerKey,
   issuerDid,
-  credentialConfigurationId: "IdentityCredential_vc+sd-jwt",
+  // Must match verifier2 transaction portal query (vct: <issuer>/identity_credential)
+  credentialConfigurationId: "identity_credential_vc+sd-jwt",
   credentialData: {
     given_name: "John",
     family_name: "Doe",
