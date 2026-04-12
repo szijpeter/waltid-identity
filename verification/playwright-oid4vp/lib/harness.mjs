@@ -16,7 +16,6 @@ const rootContextServices = [
   "wallet-api",
   "verifier-api",
   "verifier-api2",
-  "vc-repo",
   "web-portal",
   "waltid-demo-wallet",
   "waltid-dev-wallet",
