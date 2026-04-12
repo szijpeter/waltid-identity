@@ -395,8 +395,15 @@ actual class JWKKey actual constructor(
             // Custom verification (handles DER):
             val (header, payload, signature) = signedJws.split(".")
 
-            log.debug { "> Signature verification: Fallback verification checking... (NIMBUS VERIFICATION FAILED) for: $signedJws" }
-            val res = verifyRaw(signature.decodeFromBase64Url(), "$header.$payload".encodeToByteArray()).map {
+            log.debug(it) { "> Signature verification: Fallback verification checking... (NIMBUS VERIFICATION FAILED) for: $signedJws" }
+            
+            var decodedSignature = signature.decodeFromBase64Url()
+            if (keyType in KeyTypes.EC_KEYS && decodedSignature.size in setOf(64, 96, 132)) {
+                log.trace { "Converting P1363 signature to DER for fallback JVM verification" }
+                decodedSignature = EccUtils.convertP1363toDER(decodedSignature)
+            }
+
+            val res = verifyRaw(decodedSignature, "$header.$payload".encodeToByteArray()).map {
                 it.decodeToString().decodeJws().payload
             }
             res.getOrThrow()
