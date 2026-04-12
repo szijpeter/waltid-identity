@@ -64,6 +64,15 @@
 - Implementing only UI rendering for `transaction_data` without response binding and verifier validation.
 - Allowing docs/progress commits to leak into later feature branches.
 
+## Post-assessment baseline finding
+- A pre-existing `main` runtime classpath issue was identified in wallet-api registration/create-wallet flows (not introduced by the OID4VP feature branches).
+- Tracking:
+  - issue: [https://github.com/walt-id/waltid-identity/issues/1608](https://github.com/walt-id/waltid-identity/issues/1608)
+  - prior closed attempt: [https://github.com/walt-id/waltid-identity/pull/1609](https://github.com/walt-id/waltid-identity/pull/1609)
+- Handling strategy:
+  - keep a separate minimal hotfix PR for this baseline bug
+  - still open the two original task PRs for feature delivery
+
 ## Recommended Defaults
 - Keep public HTTP endpoint names stable where possible and add v1-aware behavior behind them.
 - Add new unified wallet matching endpoints only where the old presentation-definition contract is too constraining.

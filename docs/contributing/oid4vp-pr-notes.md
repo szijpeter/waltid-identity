@@ -5,6 +5,7 @@
 - `feat/transaction-data-support`
 - `feat/wallet-openid4vp-holder-binding-fix`
 - `feat/transaction-data-verifier2-verification-followup`
+- `fix/wallet-api-corewallet-classpath`
 
 ## Current Fork PRs
 - PR 1: [Add OpenID4VP 1.0 support to wallet-api](https://github.com/szijpeter/waltid-identity/pull/3)
@@ -19,6 +20,11 @@
 - PR 4 (follow-up): [Follow-up: add transaction-data checks in verifier2 compatibility validators](https://github.com/szijpeter/waltid-identity/pull/6)
   - branch: `feat/transaction-data-verifier2-verification-followup`
   - base: `feat/transaction-data-support`
+- PR 5 (baseline hotfix): [fix(wallet-api): remove core-wallet classpath collision](https://github.com/szijpeter/waltid-identity/pull/7)
+  - branch: `fix/wallet-api-corewallet-classpath`
+  - base: `main`
+  - related upstream issue: [https://github.com/walt-id/waltid-identity/issues/1608](https://github.com/walt-id/waltid-identity/issues/1608)
+  - related closed upstream attempt: [https://github.com/walt-id/waltid-identity/pull/1609](https://github.com/walt-id/waltid-identity/pull/1609)
 
 ## PR 1 Draft Notes
 
@@ -56,6 +62,31 @@
 - No steering docs in this PR branch.
 - No verifier2 compatibility-validator package additions in this PR branch (`id.walt.verifier2.verification` moved to follow-up PR #6).
 
+## Baseline Hotfix PR Draft Notes
+
+### Working Title
+- fix(wallet-api): remove core-wallet classpath collision
+
+### Scope
+- Keep this PR minimal and isolated from OID4VP feature behavior.
+- Remove `waltid-core-wallet` from wallet-api runtime dependencies.
+- Keep `UuidSerializer` locally in wallet-api so the dependency removal is non-breaking for serialization usage.
+- Confirm that wallet-api runtime classpath no longer includes `waltid-core-wallet`.
+
+### Why this PR is needed
+- This is a pre-existing `main` baseline issue that can block registration and wallet creation flows with:
+  - `NoSuchMethodError` during `WalletServiceManager` initialization
+  - cascading `NoClassDefFoundError` and HTTP 500 failures
+- Root cause is duplicate classes on runtime classpath (`id.walt.webwallet.usecase.exchange.*`) between wallet-api and core-wallet.
+- Keeping this as an isolated PR prevents scope pollution in PR1/PR2 and makes root-cause review straightforward.
+
+### Upstream PR Description Requirement
+- Explicitly mention the related issue in the upstream PR description.
+- Recommended phrase:
+  - `Resolves https://github.com/walt-id/waltid-identity/issues/1608`
+- Optional context line:
+  - `Follow-up to closed, unmerged attempt: https://github.com/walt-id/waltid-identity/pull/1609`
+
 ## Review Reminders
 - Keep language neutral and technical.
 - Mention draft compatibility explicitly.
@@ -90,3 +121,4 @@
 - Final manual demo recording is still pending and should stay outside git.
 - Final manual review pass is still pending.
 - Upstream PRs to `walt-id/waltid-identity` have not been opened yet.
+- In addition to the two original task PRs, open the baseline hotfix PR referencing issue `#1608`.

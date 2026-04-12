@@ -11,6 +11,18 @@
 - Keep steering and progress artifacts separate from product commits.
 - Treat draft and v1 support as parallel capabilities, not a migration that removes draft behavior.
 
+## Additional Baseline Fix Required
+- `main` currently has a wallet registration blocker unrelated to the OID4VP feature scope:
+  - runtime classpath collision in `wallet-api` caused by duplicate `id.walt.webwallet.usecase.exchange.*` classes coming from `waltid-core-wallet`
+  - observed failure mode: `NoSuchMethodError` during `WalletServiceManager` init, then `NoClassDefFoundError` and HTTP 500 on register/create-wallet flows
+- Related upstream tracking:
+  - issue: [https://github.com/walt-id/waltid-identity/issues/1608](https://github.com/walt-id/waltid-identity/issues/1608)
+  - prior fix attempt (closed, unmerged): [https://github.com/walt-id/waltid-identity/pull/1609](https://github.com/walt-id/waltid-identity/pull/1609)
+- Repo strategy:
+  - keep this as a separate minimal hotfix PR in addition to the original task PRs
+  - do not fold this baseline bugfix into PR1/PR2 feature scope
+  - mention the related issue explicitly in the upstream PR description (`Resolves #1608` or equivalent)
+
 ## Current Repo Map
 
 ### Wallet API and Current OSS Wallet Flow

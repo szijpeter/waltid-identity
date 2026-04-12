@@ -16,6 +16,7 @@
 - [x] Push feature branches to fork
 - [x] Open fork-local draft PRs for review
 - [x] Restack PR 2 cleanly on top of PR 1
+- [x] Isolate wallet-api classpath-collision hotfix as separate fork PR
 - [ ] Open upstream PRs after confirmation
 
 ## Branch Plan
@@ -24,12 +25,14 @@
 - Feature branch 2: `feat/transaction-data-support`
 - Follow-up branch 1: `feat/wallet-openid4vp-holder-binding-fix`
 - Follow-up branch 2: `feat/transaction-data-verifier2-verification-followup`
+- Baseline hotfix branch: `fix/wallet-api-corewallet-classpath`
 
 ## Active Branches
 - `feat/wallet-openid4vp-v1`
 - `feat/transaction-data-support`
 - `feat/wallet-openid4vp-holder-binding-fix`
 - `feat/transaction-data-verifier2-verification-followup`
+- `fix/wallet-api-corewallet-classpath`
 
 ## Feature Branch Status
 - `feat/wallet-openid4vp-v1`
@@ -60,6 +63,13 @@
   - fork PR: [https://github.com/szijpeter/waltid-identity/pull/6](https://github.com/szijpeter/waltid-identity/pull/6)
   - PR base is `feat/transaction-data-support`
   - this branch intentionally carries only verifier2 compatibility-validator transaction-data checks split out of PR2 scope
+- `fix/wallet-api-corewallet-classpath`
+  - pushed to fork and under review
+  - fork PR: [https://github.com/szijpeter/waltid-identity/pull/7](https://github.com/szijpeter/waltid-identity/pull/7)
+  - PR base is `main`
+  - purpose: minimal baseline wallet-api runtime fix for classpath collision (`wallet-api` vs `waltid-core-wallet` duplicate `id.walt.webwallet.usecase.exchange.*` classes)
+  - related upstream issue: [https://github.com/walt-id/waltid-identity/issues/1608](https://github.com/walt-id/waltid-identity/issues/1608)
+  - related closed upstream attempt: [https://github.com/walt-id/waltid-identity/pull/1609](https://github.com/walt-id/waltid-identity/pull/1609)
 
 ## Commit Separation
 - Docs commits stay on docs branch.
@@ -126,5 +136,6 @@
 ## Remaining Before Upstream Publication
 - Record the final manual demo outside git.
 - Do the final manual code review.
+- Open the baseline upstream hotfix PR for classpath collision (issue `#1608`) in addition to the two original task PRs.
 - Prepare upstream PR descriptions from the notes file.
 - Rebase on latest upstream `main` only when ready to open upstream PRs.
