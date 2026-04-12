@@ -16,6 +16,7 @@ const rootContextServices = [
   "wallet-api",
   "verifier-api",
   "verifier-api2",
+  "vc-repo",
   "web-portal",
   "waltid-demo-wallet",
   "waltid-dev-wallet",
@@ -347,6 +348,11 @@ function waitForServiceReadiness() {
       name: "verifier-api2",
       url: process.env.HARNESS_VERIFIER2_READY_URL ?? "http://localhost:7304/verification-session/create",
       acceptedStatusCodes: [405],
+    },
+    {
+      name: "vc-repo",
+      url: process.env.HARNESS_VC_REPO_READY_URL ?? "http://localhost:7103/api/list",
+      acceptedStatusCodes: [200],
     },
   ];
 

@@ -151,6 +151,10 @@ HARNESS_COMPOSE_PROJECT=waltid-oid4vp-waltid-harness
 HARNESS_RECREATE_STACK=true
 HARNESS_SERVICE_READY_TIMEOUT_MS=180000
 HARNESS_SERVICE_READY_INTERVAL_MS=2000
+HARNESS_WALLET_API_READY_URL=http://localhost:7001/wallet-api/auth/register
+HARNESS_ISSUER_API_READY_URL=http://localhost:7002/openid4vc/sdjwt/issue
+HARNESS_VERIFIER2_READY_URL=http://localhost:7304/verification-session/create
+HARNESS_VC_REPO_READY_URL=http://localhost:7103/api/list
 
 PORTAL_BASE_URL=http://localhost:7102
 WALLET_BASE_URL=http://localhost:7101
