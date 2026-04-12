@@ -412,10 +412,10 @@ The wallet:
 Verifier-side validation is done through:
 - `waltid-libraries/credentials/waltid-verification-policies2-vp/src/commonMain/kotlin/id/walt/policies2/vp/policies/mso_mdoc/TransactionDataMdocVpPolicy.kt`
 
-Issuer-side support was also needed so a real demoable mdoc could exist:
+Issuer-side support was also needed so mdoc transaction-data binding could be exercised end to end:
 - `waltid-services/waltid-issuer-api/src/main/kotlin/id/walt/issuer/issuance/CIProvider.kt`
 
-That issuer change is what makes the mdoc E2E demo possible instead of only “supported in code.”
+That issuer change is necessary for mdoc transaction-data semantics, even though the current verifier2 mdoc E2E run is still blocked later by the separate `mso_mdoc/device-auth` signature-verification issue.
 
 Relevant references:
 - issue-guidance direction for mdoc:
@@ -485,9 +485,25 @@ Validated with a local Playwright harness against the branch-backed Docker stack
 - SD-JWT transaction flow
 - mdoc transaction flow
 
-Latest successful artifact sets are persisted under:
-- `$HOME/.waltid-playwright-artifacts/transaction-data-support--verifier2-portal-dc-sd-jwt--<timestamp>/`
-- `$HOME/.waltid-playwright-artifacts/transaction-data-support--verifier2-portal-mso-mdoc--<timestamp>/`
+Latest provenance-safe PR2 matrix summary:
+- `$HOME/.waltid-playwright-artifacts/transaction-data-pr2pluspr5-fix--pr2-matrix-summary--2026-04-12T17-10-31.643Z/run-summary.json`
+
+Current PR2 matrix outcome:
+- successful required scenarios:
+  - `legacy-jwt-w3c`
+  - `verifier2-portal-dc+sd-jwt`
+  - verifier2 API `dc+sd-jwt` with `direct`, `request_uri_get`, `request_object_unsigned`, `request_object_signed`
+- failing required scenarios:
+  - `verifier2-portal-mso_mdoc`
+  - verifier2 API `mso_mdoc` with `direct`, `request_uri_get`, `request_object_unsigned`, `request_object_signed`
+- non-blocking probes:
+  - verifier2 API `request_uri_post` is `SKIPPED_UNSUPPORTED` for both formats
+
+Known-gap classification for mdoc failures:
+- On PR2+PR5, mdoc runs reach verifier2 policy evaluation and fail in `mso_mdoc/device-auth` with `Device authentication signature failed to verify.`
+- On PR2+PR5 with `ENABLE_TRANSACTION_DATA=false`, mdoc still fails at the same `device-auth` step while `mso_mdoc/transaction-data-hash-check` reports expected/embedded items `0/0`.
+- On `main` and on PR1+PR5 baseline, mdoc verifier2 flow fails earlier in wallet request resolution (`resolvePresentationRequest` 500), so those branches cannot serve as successful mdoc E2E baselines.
+- Therefore the observed PR2 mdoc failure is currently classified as a pre-existing/non-transaction-data blocker, not a regression introduced by PR2 transaction-data implementation.
 
 ### Additional post-restack verification
 After restacking the branch onto the latest task-1 head, the following focused validation was rerun to confirm the shared wallet path still compiles and the transaction-data validation path still behaves correctly:
@@ -544,7 +560,7 @@ Relevant local URLs:
    - the verifier page reaches a successful final state
 
 ### Manual mdoc verification
-The branch supports an end-to-end mdoc flow, but the mdoc issuance step is API-driven rather than portal-driven.
+The branch includes the mdoc transaction-data plumbing and policy checks, but current verifier2 mdoc E2E still hits a known `mso_mdoc/device-auth` signature-verification blocker.
 
 Recommended approach:
 1. Start the same stack as above.
@@ -560,8 +576,9 @@ Recommended approach:
 5. Create the transaction verification request.
 6. Open it in the wallet and verify:
    - transaction details are shown
-   - the presentation succeeds
-   - verifier2 reaches success
+   - presentation reaches verifier2 evaluation
+   - current expected outcome is failure at `mso_mdoc/device-auth` with `Device authentication signature failed to verify.`
+   - `mso_mdoc/transaction-data-hash-check` should still show expected and embedded item counts (used to confirm transaction-data path is exercised even while device-auth fails)
 
 ### What to inspect manually
 - Does the wallet show transaction details for both formats?

@@ -436,15 +436,18 @@ The branch was also validated by:
 - running the local compose stack
 - driving browser E2E scenarios against verifier2 and the wallet UI
 
-Current successful task-1 browser artifacts:
-- base verifier2 `request_uri` flow:
-  - `$HOME/.waltid-playwright-artifacts/wallet-openid4vp-v1--verifier2-api-dc-sd-jwt-request_uri_get--<timestamp>/`
-- direct query-parameter flow:
-  - `$HOME/.waltid-playwright-artifacts/wallet-openid4vp-v1--verifier2-api-dc-sd-jwt-direct--<timestamp>/`
-- inline `request` Request Object flow:
-  - `$HOME/.waltid-playwright-artifacts/wallet-openid4vp-v1--verifier2-api-dc-sd-jwt-request_object_unsigned--<timestamp>/`
-- signed request-object flow:
-  - `$HOME/.waltid-playwright-artifacts/wallet-openid4vp-v1--verifier2-api-dc-sd-jwt-request_object_signed--<timestamp>/`
+Latest provenance-safe PR1 summary:
+- `$HOME/.waltid-playwright-artifacts/wallet-openid4vp-pr1pr5-final--pr1-matrix-summary--2026-04-12T17-25-37.216Z/run-summary.json`
+
+Required matrix result (`SUCCESSFUL`):
+- `legacy-jwt-w3c`
+- verifier2 `dc+sd-jwt` `direct`
+- verifier2 `dc+sd-jwt` `request_uri_get`
+- verifier2 `dc+sd-jwt` `request_object_unsigned`
+- verifier2 `dc+sd-jwt` `request_object_signed`
+
+Additional probe result:
+- verifier2 `dc+sd-jwt` `request_uri_post`: `SKIPPED_UNSUPPORTED` (verifier2 `/request` POST probe returned `404`; this is non-blocking in current gate policy)
 
 Important note about the signed-request artifact:
 - the verifier2 temp config must use `clientId: "x509_san_dns:verifier.example.com"` for that scenario

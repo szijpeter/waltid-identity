@@ -105,6 +105,29 @@
 - This is the expected split behavior and confirms PR5 contains the holder-binding fix that is intentionally out of PR1 scope.
 - Optional legacy SD-JWT portal probes were also added, but in the measured environment the verifier portal did not expose the `SD-JWT VC` option, so those probe failures are not used as branch-delta evidence.
 
+## Readiness Snapshot (2026-04-12)
+- PR1 required readiness matrix is green on the current PR1+PR5 stack:
+  - summary: `$HOME/.waltid-playwright-artifacts/wallet-openid4vp-pr1pr5-final--pr1-matrix-summary--2026-04-12T17-25-37.216Z/run-summary.json`
+  - required scenarios passed:
+    - `legacy-jwt-w3c`
+    - verifier2 `dc+sd-jwt` with `direct`, `request_uri_get`, `request_object_unsigned`, `request_object_signed`
+  - non-blocking probe: `request_uri_post` is `SKIPPED_UNSUPPORTED` (verifier2 `/request` POST probe returns `404`).
+- PR2 matrix on PR2+PR5 stack is partially green:
+  - summary: `$HOME/.waltid-playwright-artifacts/transaction-data-pr2pluspr5-fix--pr2-matrix-summary--2026-04-12T17-10-31.643Z/run-summary.json`
+  - successful required paths:
+    - legacy verifier compatibility (`legacy-jwt-w3c`)
+    - verifier2 portal `dc+sd-jwt`
+    - verifier2 API `dc+sd-jwt` request-shape matrix (`direct`, `request_uri_get`, `request_object_unsigned`, `request_object_signed`)
+  - failing required paths:
+    - verifier2 portal `mso_mdoc`
+    - verifier2 API `mso_mdoc` request-shape matrix (`direct`, `request_uri_get`, `request_object_unsigned`, `request_object_signed`)
+- mdoc failure classification:
+  - main baseline mdoc verifier2 run fails earlier in wallet request resolution (`resolvePresentationRequest` 500): `$HOME/.waltid-playwright-artifacts/main-baseline--verifier2-api-mso-mdoc-direct--2026-04-12T15-22-34.275Z`
+  - PR1+PR5 baseline reproduces the same early failure: `$HOME/.waltid-playwright-artifacts/pr1pr5-baseline--verifier2-api-mso-mdoc-direct--2026-04-12T15-28-59.885Z`
+  - PR2 reaches verifier2 policy execution, but fails at `mso_mdoc/device-auth` (`Device authentication signature failed to verify.`)
+  - PR2 with `ENABLE_TRANSACTION_DATA=false` still fails at the same `device-auth` step while `mso_mdoc/transaction-data-hash-check` passes with `expected_transaction_data_items=0` and `embedded_transaction_data_items=0`
+  - conclusion: current mdoc E2E blocker is not caused by PR2 transaction-data logic.
+
 ## Delivery Strategy
 - Docs branch:
   - `docs/oid4vp-steering`

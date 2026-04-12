@@ -101,21 +101,26 @@
 - Current branch 1 readiness result:
   - focused wallet-api test suite passed
   - legacy integration and e2e suites passed
-  - browser E2E passed for the demo wallet verifier2 flow, direct query-param flow, inline `request` flow, and signed request-object flow
+  - provenance-safe browser matrix passed for required scenarios (`legacy-jwt-w3c`, verifier2 `dc+sd-jwt` `direct`, `request_uri_get`, `request_object_unsigned`, `request_object_signed`)
+  - `request_uri_post` is detected as unsupported by current verifier2 `/request` endpoint and is recorded as `SKIPPED_UNSUPPORTED` (non-blocking)
   - the full repo CI-like run still fails in unrelated JS-node test `VcApiTest.testVcApi[js, node]` under `waltid-w3c-credentials`
 - Current branch 1 browser artifacts:
   - artifacts are now stored under:
     - `$HOME/.waltid-playwright-artifacts/<branch-tag>--<scenario>--<timestamp>/`
-  - canonical task-1 scenario names:
-    - `main--legacy-verifier-portal--...`
-    - `wallet-openid4vp-v1--verifier2-api-dc-sd-jwt-request_uri_get--...`
-    - `wallet-openid4vp-v1--verifier2-api-dc-sd-jwt-request_object_unsigned--...`
-    - `wallet-openid4vp-v1--verifier2-api-dc-sd-jwt-request_object_signed--...`
+  - latest PR1 readiness summary:
+    - `$HOME/.waltid-playwright-artifacts/wallet-openid4vp-pr1pr5-final--pr1-matrix-summary--2026-04-12T17-25-37.216Z/run-summary.json`
 - Current branch 2 post-restack checks:
   - `./gradlew --no-build-cache --no-daemon :waltid-libraries:protocols:waltid-openid4vp:jvmTest --tests 'id.walt.verifier.openid.transactiondata.*' :waltid-libraries:credentials:waltid-verification-policies2-vp:jvmTest --tests 'id.walt.policies2.vp.policies.TransactionDataHashCheckSdJwtVPPolicyTest' --tests 'id.walt.policies2.vp.policies.TransactionDataMdocVpPolicyTest' :waltid-services:waltid-wallet-api:test --tests 'id.walt.webwallet.service.exchange.OpenId4VpPresentationServiceTest' :waltid-services:waltid-verifier-api2:test --tests 'id.walt.verifier2.sdjwt.IETFSdJwtVcWithDisclosureVerifier2IntegrationTest' --tests 'id.walt.verifier2.mdocs.PidBirthDateIssuerSignedIntegrityReproTest'`
-  - browser E2E artifacts:
-    - SD-JWT transaction flow: `$HOME/.waltid-playwright-artifacts/transaction-data-support--verifier2-portal-dc-sd-jwt--<timestamp>/`
-    - mdoc transaction flow: `$HOME/.waltid-playwright-artifacts/transaction-data-support--verifier2-portal-mso-mdoc--<timestamp>/`
+  - provenance-safe PR2 matrix summary:
+    - `$HOME/.waltid-playwright-artifacts/transaction-data-pr2pluspr5-fix--pr2-matrix-summary--2026-04-12T17-10-31.643Z/run-summary.json`
+  - PR2 matrix status:
+    - `dc+sd-jwt` transaction flows pass (`portal` + verifier2 API request-shape matrix)
+    - `mso_mdoc` transaction flows fail (`portal` + verifier2 API request-shape matrix)
+    - failure point is verifier2 `mso_mdoc/device-auth` (`Device authentication signature failed to verify.`), not transaction-data hash checking
+  - baseline comparisons used for classification:
+    - `main` mdoc verifier2 flow fails earlier at wallet request resolution (`resolvePresentationRequest` 500)
+    - `PR1+PR5` baseline fails the same early way
+    - PR2 with `ENABLE_TRANSACTION_DATA=false` still fails mdoc at `device-auth`, while `mso_mdoc/transaction-data-hash-check` reports expected/embedded counts as `0`
 
 ## Remaining Before Publication
 - Final manual demo recording is still pending and should stay outside git.

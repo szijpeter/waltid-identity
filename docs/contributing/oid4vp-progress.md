@@ -103,21 +103,20 @@
   - `docker build -t waltid-demo-wallet-local -f waltid-applications/waltid-web-wallet/apps/waltid-demo-wallet/Dockerfile .`
   - `docker build -t waltid-dev-wallet-local -f waltid-applications/waltid-web-wallet/apps/waltid-dev-wallet/Dockerfile .`
 - Automated end-to-end validation:
-  - Playwright base OpenID4VP 1.0 wallet flow completed successfully for task 1 on current branch head
-  - Playwright direct query-parameter launch flow completed successfully on current branch head
-  - Playwright inline `request` launch flow completed successfully on current branch head
-  - Playwright signed request-object flow completed successfully on current branch head when verifier2 is started with the `x509_san_dns:verifier.example.com` profile
-  - Playwright transaction flow completed successfully for `dc+sd-jwt`
-  - Playwright transaction flow completed successfully for `mso_mdoc`
+  - PR1 required matrix is green on latest run summary:
+    - `$HOME/.waltid-playwright-artifacts/wallet-openid4vp-pr1pr5-final--pr1-matrix-summary--2026-04-12T17-25-37.216Z/run-summary.json`
+    - `legacy-jwt-w3c` passed
+    - verifier2 `dc+sd-jwt` `direct`, `request_uri_get`, `request_object_unsigned`, `request_object_signed` passed
+    - `request_uri_post` is `SKIPPED_UNSUPPORTED` (non-blocking, verifier2 `/request` POST probe returns `404`)
+  - PR2 matrix on PR2+PR5 summary:
+    - `$HOME/.waltid-playwright-artifacts/transaction-data-pr2pluspr5-fix--pr2-matrix-summary--2026-04-12T17-10-31.643Z/run-summary.json`
+    - transaction-data flow passed for `dc+sd-jwt` (`portal` + API request-shape matrix)
+    - `mso_mdoc` failed in `portal` + API request-shape matrix at verifier2 `mso_mdoc/device-auth` (`Device authentication signature failed to verify.`)
+    - PR2 mdoc failure is classified as non-transaction-data regression candidate (same `device-auth` failure with `ENABLE_TRANSACTION_DATA=false`)
   - artifacts are persisted under: `$HOME/.waltid-playwright-artifacts/<branch-tag>--<scenario>--<timestamp>/`
-  - canonical task-1 scenario names:
-    - `main--legacy-verifier-portal--...`
-    - `wallet-openid4vp-v1--verifier2-api-dc-sd-jwt-request_uri_get--...`
-    - `wallet-openid4vp-v1--verifier2-api-dc-sd-jwt-request_object_unsigned--...`
-    - `wallet-openid4vp-v1--verifier2-api-dc-sd-jwt-request_object_signed--...`
-  - canonical task-2 scenario names:
-    - `transaction-data-support--verifier2-portal-dc-sd-jwt--...`
-    - `transaction-data-support--verifier2-portal-mso-mdoc--...`
+  - canonical current scenario tags:
+    - `wallet-openid4vp-pr1pr5-final--...`
+    - `transaction-data-pr2pluspr5-fix--...`
 - Full repo CI-like validation:
   - `./gradlew clean build cleanAllTests allTests --rerun-tasks --no-daemon --max-workers=3`
   - current outcome: branch-related wallet/integration/e2e suites are green; the full run still fails in unrelated JS-node test `VcApiTest.testVcApi[js, node]` under `waltid-libraries/credentials/waltid-w3c-credentials`
