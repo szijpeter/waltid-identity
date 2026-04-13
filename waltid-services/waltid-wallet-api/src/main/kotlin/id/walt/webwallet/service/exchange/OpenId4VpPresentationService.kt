@@ -10,6 +10,8 @@ import id.walt.dcql.DcqlMatcher
 import id.walt.dcql.RawDcqlCredential
 import id.walt.dcql.models.DcqlQuery
 import id.walt.verifier.openid.models.authorization.AuthorizationRequest
+import id.walt.verifier.openid.transactiondata.SUPPORTED_TRANSACTION_DATA_TYPES
+import id.walt.verifier.openid.transactiondata.validateRequestTransactionData
 import id.walt.webwallet.db.models.WalletCredential
 import id.walt.webwallet.service.credentials.CredentialFilterObject
 import id.walt.webwallet.service.credentials.CredentialsService
@@ -33,14 +35,27 @@ class OpenId4VpPresentationService(
     private val credentialService: CredentialsService,
 ) {
     private val logger = KotlinLogging.logger { }
+    private val supportedTransactionDataTypes = SUPPORTED_TRANSACTION_DATA_TYPES
     private val json = Json {
         ignoreUnknownKeys = true
         encodeDefaults = false
         isLenient = true
     }
 
-    suspend fun tryResolveAuthorizationRequest(request: String): Result<ResolvedAuthorizationRequest> =
-        runCatching { AuthorizationRequestResolver.resolve(request, http) }
+    suspend fun tryResolveAuthorizationRequest(request: String): Result<ResolvedAuthorizationRequest> = runCatching {
+        AuthorizationRequestResolver.resolve(request, http).also { resolvedRequest ->
+            val authorizationRequest = resolvedRequest.authorizationRequest
+            if (!authorizationRequest.transactionData.isNullOrEmpty() && authorizationRequest.dcqlQuery == null) {
+                throw IllegalArgumentException("invalid_request: transaction_data requires dcql_query")
+            }
+
+            validateRequestTransactionData(
+                transactionData = authorizationRequest.transactionData,
+                supportedTypes = supportedTransactionDataTypes,
+                credentialQueriesById = authorizationRequest.dcqlQuery?.credentials?.associateBy { it.id },
+            )
+        }
+    }
 
     fun buildWalletPresentationRequest(
         request: String,
