@@ -105,6 +105,29 @@
 - This is the expected split behavior and confirms PR5 contains the holder-binding fix that is intentionally out of PR1 scope.
 - Optional legacy SD-JWT portal probes were also added, but in the measured environment the verifier portal did not expose the `SD-JWT VC` option, so those probe failures are not used as branch-delta evidence.
 
+## Late-stage Findings (2026-04-13)
+- Verifier UI split is intentional and matters for manual verification:
+  - `http://localhost:7102/verify` is legacy verifier UI (depends on `verifier-api`, port `7303`)
+  - `http://localhost:7102/verify/transaction` is verifier2 transaction demo UI (depends on `verifier-api2`, port `7304`)
+  - there is no full separate verifier2 "dev app" equivalent to the legacy `/verify` page in the current OSS portal
+- Two production-facing compatibility fixes were confirmed as required and are not harness-only:
+  - wallet deep-link handling in demo/dev wallet must avoid `encodeURI(decodeURI(...))` roundtrip before base64url request wrapping, because this can mutate already-encoded OpenID4VP query values
+  - verifier transaction demo `dc+sd-jwt` query should include both known VCT identifiers used in OSS flows:
+    - `<issuer>/identity_credential`
+    - `<issuer>/draft13/IdentityCredential`
+- Practical operator finding:
+  - if `verifier-api` is not started, the legacy verifier flow cannot generate offer/request URLs from `/verify`, even when verifier2 flow is healthy
+  - this is a runtime stack prerequisite issue, not a protocol issue
+
+## Recording Runbook
+- A dedicated, robust manual recording runbook is now maintained at:
+  - `docs/contributing/oid4vp-recording-scenarios.md`
+- Use that file as the source of truth for:
+  - required service topology
+  - scenario matrix per branch objective
+  - expected states to capture for wallet and verifier windows
+  - known troubleshooting patterns during recording sessions
+
 ## Readiness Snapshot (2026-04-12)
 - PR1 required readiness matrix is green on the current PR1+PR5 stack:
   - summary: `$HOME/.waltid-playwright-artifacts/wallet-openid4vp-pr1pr5-final--pr1-matrix-summary--2026-04-12T17-25-37.216Z/run-summary.json`

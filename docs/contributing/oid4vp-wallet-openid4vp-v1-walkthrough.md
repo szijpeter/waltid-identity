@@ -4,6 +4,13 @@
 - Branch: `feat/wallet-openid4vp-v1`
 - Fork PR: [https://github.com/szijpeter/waltid-identity/pull/3](https://github.com/szijpeter/waltid-identity/pull/3)
 
+## Late RC Compatibility Fix (2026-04-13)
+- A pre-existing request-forwarding issue on `main` was confirmed in both demo and dev wallet apps:
+  - `encodeURI(decodeURI(fixRequest(...)))` in presentation-init pages can mutate already-encoded OpenID4VP query values
+- Required fix:
+  - keep only `fixRequest("openid://" + window.location.search)` before `encodeRequest(...)`
+- This is a compatibility/correctness hardening for OpenID4VP request forwarding and should be treated as part of task-1 delivery quality.
+
 ## Task and Intent
 The goal of this branch is to add OpenID4VP 1.0 holder support to the OSS `wallet-api` and wallet UI without breaking the older draft-based presentation flow that the repo already had.
 

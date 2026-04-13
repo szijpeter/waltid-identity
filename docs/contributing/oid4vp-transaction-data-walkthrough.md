@@ -6,6 +6,14 @@
 - Base branch: `feat/wallet-openid4vp-v1`
 - Related follow-up branch/PR (split out of PR2 scope): `feat/transaction-data-verifier2-verification-followup` / [PR #6](https://github.com/szijpeter/waltid-identity/pull/6)
 
+## Late RC Compatibility Fixes (2026-04-13)
+- Verifier transaction demo `dc+sd-jwt` query metadata needed dual VCT compatibility to avoid false no-match outcomes:
+  - `<issuer>/identity_credential`
+  - `<issuer>/draft13/IdentityCredential`
+- Operational route split to keep in mind during validation and recording:
+  - `/verify` is legacy verifier UI (`verifier-api`)
+  - `/verify/transaction` is verifier2 transaction UI (`verifier-api2`)
+
 ## Current stacked shape
 This branch is stacked on top of task 1 (`feat/wallet-openid4vp-v1`) and contains only the transaction-data-focused feature and hardening changes for task 2.
 

@@ -17,6 +17,7 @@
 - [x] Open fork-local draft PRs for review
 - [x] Restack PR 2 cleanly on top of PR 1
 - [x] Isolate wallet-api classpath-collision hotfix as separate fork PR
+- [x] Add robust manual recording scenario runbook
 - [ ] Open upstream PRs after confirmation
 
 ## Branch Plan
@@ -131,6 +132,16 @@
   - the demo wallet browser path is the most reliable verification target today
 - Restacking PR 2 after the late PR 1 hardening pass was mostly a request-resolution integration exercise.
   - the important re-check after that restack was not just the focused Kotlin suite but also a fresh SD-JWT and mdoc browser run against rebuilt images
+
+## Latest Findings (2026-04-13)
+- Portal routes are split by backend:
+  - `/verify` depends on legacy `verifier-api` (`7303`)
+  - `/verify/transaction` depends on `verifier-api2` (`7304`)
+- Two compatibility fixes were validated as production-facing (not harness-only):
+  - remove URI decode/encode roundtrip in wallet presentation-init entrypoints (demo + dev)
+  - include both known VCT identifiers in transaction demo `dc+sd-jwt` query metadata
+- Manual recording process now has a dedicated runbook:
+  - `docs/contributing/oid4vp-recording-scenarios.md`
 
 ## Remaining Before Upstream Publication
 - Record the final manual demo outside git.
