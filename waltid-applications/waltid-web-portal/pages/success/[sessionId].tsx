@@ -9,7 +9,12 @@ import {EnvContext} from "@/pages/_app";
 
 type DisplayPolicyEntry = {
   policy: string;
+  policyId?: string;
   is_success: boolean;
+  result?: unknown;
+  error?: string | null;
+  source?: "vp" | "vc" | "specific_vc" | "legacy";
+  queryId?: string;
 };
 
 type DisplayPolicyGroup = {
@@ -93,21 +98,19 @@ export default function Success() {
 
         setPolicyResults(() => {
           if (containsVP) {
-            return response.data.policyResults.results;
-          } else {
-            //add a new entry to the policy results, since its start index +1
-            return [
-              {
-                policyResults: [
-                  {
-                    policy: 'New Policy',
-                    is_success: true,
-                  },
-                ],
-              },
-              ...response.data.policyResults.results,
-            ];
+            return normalizePolicyResults(response.data.policyResults?.results);
           }
+          return normalizePolicyResults([
+            {
+              policyResults: [
+                {
+                  policy: 'new_policy',
+                  is_success: true,
+                },
+              ],
+            },
+            ...(response.data.policyResults?.results ?? []),
+          ]);
         });
 
         if (!containsVP) {
@@ -146,6 +149,10 @@ export default function Success() {
   const activePolicyResults = policyResults[index + 1]?.policyResults
     ?? policyResults[index]?.policyResults
     ?? [];
+  const transactionDataPolicyResults = useMemo(
+    () => activePolicyResults.filter((policy) => isTransactionDataPolicyId(policy.policyId ?? policy.policy)),
+    [activePolicyResults],
+  );
   const titleLabel = getCredentialTitle(activeCredential, vctName);
 
   return (
@@ -271,6 +278,42 @@ export default function Success() {
           )}
         </div>
         <div className="mt-10 px-12">
+          {isVerifier2Engine && (
+            <div className="mb-8">
+              <div className="flex flex-row items-center justify-center mb-3 text-gray-500">
+                Transaction Data Verification
+              </div>
+              {transactionDataPolicyResults.length > 0 ? (
+                <div className="xs:grid xs:grid-cols-1 items-center justify-center gap-2">
+                  {transactionDataPolicyResults.map((policy, idx) => {
+                    const policyLabel = formatPolicyLabel(policy.policyId ?? policy.policy);
+                    return (
+                      <div
+                        key={`${policy.policyId ?? policy.policy}-${idx}`}
+                        className="flex items-start gap-3"
+                      >
+                        {policy.is_success ? (
+                          <CheckCircleIcon className="h-4 text-green-600 mt-[3px]" />
+                        ) : (
+                          <CheckCircleIcon className="h-4 text-red-600 mt-[3px]" />
+                        )}
+                        <div className="text-left">
+                          <div>{policyLabel}</div>
+                          {policy.error && (
+                            <div className="text-xs text-red-600 mt-1">{policy.error}</div>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : (
+                <div className="text-sm text-gray-500 text-center">
+                  No transaction_data policy result was reported for this session.
+                </div>
+              )}
+            </div>
+          )}
           <div className="flex flex-row items-center justify-center mb-5 text-gray-500">
             {activePolicyResults.length
               ? 'The VP was verified along with:'
@@ -280,10 +323,7 @@ export default function Success() {
             {activePolicyResults
               .map((policy) => {
                 return {
-                  name:
-                    policy.policy.charAt(0).toUpperCase() +
-                    policy.policy.slice(1) +
-                    ' Policy',
+                  name: toPolicyDisplayName(policy.policyId ?? policy.policy),
                   is_success: policy.is_success,
                 };
               })
@@ -483,31 +523,208 @@ function normalizePolicyResults(raw: unknown): DisplayPolicyGroup[] {
     return normalizePolicyResults(policyRecord.policy_results);
   }
 
-  const rawPolicies = Array.isArray(raw) ? raw : [raw];
-  const normalizedPolicies = rawPolicies
-    .map((policy) => {
-      const policyObj = asRecord(policy);
-      if (!policyObj) {
-        return null;
-      }
-
-      const policyNameRaw = policyObj.policy ?? policyObj.name ?? policyObj.id;
-      const policyName = typeof policyNameRaw === "string" ? policyNameRaw : "Policy";
-      const isSuccessRaw = policyObj.is_success ?? policyObj.isSuccess ?? policyObj.result;
-      const isSuccess = typeof isSuccessRaw === "boolean" ? isSuccessRaw : Boolean(isSuccessRaw);
-
-      return {
-        policy: policyName,
-        is_success: isSuccess,
-      };
-    })
-    .filter((policy): policy is DisplayPolicyEntry => policy !== null);
-
-  if (!normalizedPolicies.length) {
-    return [EMPTY_POLICY_GROUP];
+  if (policyRecord) {
+    const looksLikeVerifier2Structure = Boolean(
+      policyRecord.vc_policies || policyRecord.specific_vc_policies || policyRecord.vp_policies,
+    );
+    if (looksLikeVerifier2Structure) {
+      const normalizedPolicies = [
+        ...normalizePolicyEntryList(policyRecord.vc_policies, { source: "vc" }),
+        ...normalizeSpecificPolicyEntries(policyRecord.specific_vc_policies),
+        ...normalizeVpPolicyEntries(policyRecord.vp_policies),
+      ];
+      return normalizedPolicies.length
+        ? [EMPTY_POLICY_GROUP, { policyResults: normalizedPolicies }]
+        : [EMPTY_POLICY_GROUP];
+    }
   }
 
-  return [EMPTY_POLICY_GROUP, { policyResults: normalizedPolicies }];
+  if (Array.isArray(raw)) {
+    const looksLikeLegacyGroupedPolicies = raw.every((item) => {
+      const grouped = asRecord(item)?.policyResults;
+      return Array.isArray(grouped);
+    });
+    if (looksLikeLegacyGroupedPolicies) {
+      return raw.map((group) => {
+        const groupPolicies = asRecord(group)?.policyResults;
+        return {
+          policyResults: normalizePolicyEntryList(groupPolicies, { source: "legacy" }),
+        };
+      });
+    }
+
+    const normalizedPolicies = normalizePolicyEntryList(raw, { source: "legacy" });
+    return normalizedPolicies.length
+      ? [EMPTY_POLICY_GROUP, { policyResults: normalizedPolicies }]
+      : [EMPTY_POLICY_GROUP];
+  }
+
+  const normalizedPolicy = normalizePolicyEntry(raw, { source: "legacy" });
+  return normalizedPolicy
+    ? [EMPTY_POLICY_GROUP, { policyResults: [normalizedPolicy] }]
+    : [EMPTY_POLICY_GROUP];
+}
+
+function normalizeVpPolicyEntries(rawVpPolicies: unknown): DisplayPolicyEntry[] {
+  const vpPolicyMap = asRecord(rawVpPolicies);
+  if (!vpPolicyMap) {
+    return [];
+  }
+
+  return Object.entries(vpPolicyMap).flatMap(([queryId, queryPolicyRuns]) => {
+    const runByPolicyId = asRecord(queryPolicyRuns);
+    if (!runByPolicyId) {
+      return [];
+    }
+
+    return Object.entries(runByPolicyId)
+      .map(([policyId, policyRun]) => {
+        const parsed = normalizePolicyEntry(policyRun, { source: "vp", queryId });
+        if (parsed) {
+          return parsed;
+        }
+        return {
+          policy: policyId,
+          policyId,
+          is_success: false,
+          source: "vp" as const,
+          queryId,
+        };
+      });
+  });
+}
+
+function normalizeSpecificPolicyEntries(rawSpecificPolicies: unknown): DisplayPolicyEntry[] {
+  const specificPolicyMap = asRecord(rawSpecificPolicies);
+  if (!specificPolicyMap) {
+    return [];
+  }
+
+  return Object.entries(specificPolicyMap).flatMap(([queryId, policies]) =>
+    normalizePolicyEntryList(policies, { source: "specific_vc", queryId }),
+  );
+}
+
+function normalizePolicyEntryList(
+  rawPolicies: unknown,
+  context: { source: DisplayPolicyEntry["source"]; queryId?: string },
+): DisplayPolicyEntry[] {
+  if (!rawPolicies) {
+    return [];
+  }
+
+  const policyArray = Array.isArray(rawPolicies) ? rawPolicies : [rawPolicies];
+  return policyArray
+    .map((policy) => normalizePolicyEntry(policy, context))
+    .filter((policy): policy is DisplayPolicyEntry => policy !== null);
+}
+
+function normalizePolicyEntry(
+  rawPolicy: unknown,
+  context: { source: DisplayPolicyEntry["source"]; queryId?: string },
+): DisplayPolicyEntry | null {
+  const policyObj = asRecord(rawPolicy);
+  if (!policyObj) {
+    return null;
+  }
+
+  const policyId = extractPolicyId(policyObj);
+  const isSuccess = extractPolicySuccess(policyObj);
+  const error = extractPolicyError(policyObj);
+
+  return {
+    policy: policyId,
+    policyId,
+    is_success: isSuccess,
+    result: policyObj.result ?? policyObj.results,
+    error,
+    source: context.source,
+    queryId: context.queryId,
+  };
+}
+
+function extractPolicyId(policyObj: Record<string, unknown>): string {
+  const policyField = policyObj.policy;
+  if (typeof policyField === "string" && policyField.length > 0) {
+    return policyField;
+  }
+
+  const policyObjField = asRecord(policyField);
+  if (policyObjField && typeof policyObjField.id === "string" && policyObjField.id.length > 0) {
+    return policyObjField.id;
+  }
+
+  const executedPolicy = asRecord(policyObj.policy_executed);
+  if (executedPolicy && typeof executedPolicy.id === "string" && executedPolicy.id.length > 0) {
+    return executedPolicy.id;
+  }
+
+  if (typeof policyObj.id === "string" && policyObj.id.length > 0) {
+    return policyObj.id;
+  }
+
+  return "policy";
+}
+
+function extractPolicySuccess(policyObj: Record<string, unknown>): boolean {
+  const explicitSuccess = policyObj.is_success ?? policyObj.isSuccess ?? policyObj.success;
+  if (typeof explicitSuccess === "boolean") {
+    return explicitSuccess;
+  }
+
+  const errors = policyObj.errors;
+  if (Array.isArray(errors)) {
+    return errors.length === 0;
+  }
+
+  return false;
+}
+
+function extractPolicyError(policyObj: Record<string, unknown>): string | null {
+  if (typeof policyObj.error === "string" && policyObj.error.length > 0) {
+    return policyObj.error;
+  }
+
+  const errors = policyObj.errors;
+  if (!Array.isArray(errors) || errors.length === 0) {
+    return null;
+  }
+
+  const firstError = asRecord(errors[0]);
+  if (!firstError) {
+    return null;
+  }
+  if (typeof firstError.message === "string" && firstError.message.length > 0) {
+    return firstError.message;
+  }
+  if (typeof firstError.error === "string" && firstError.error.length > 0) {
+    return firstError.error;
+  }
+  return null;
+}
+
+function isTransactionDataPolicyId(policyId: string): boolean {
+  return policyId.includes("transaction-data") || policyId.includes("transaction_data");
+}
+
+function formatPolicyLabel(policyId: string): string {
+  const normalized = policyId
+    .split("/")
+    .pop()
+    ?.replace(/[+]/g, " plus ")
+    .replace(/[-_]/g, " ")
+    .trim() ?? policyId;
+
+  if (!normalized.length) {
+    return "Policy";
+  }
+
+  return normalized.replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
+function toPolicyDisplayName(policyId: string): string {
+  const label = formatPolicyLabel(policyId);
+  return /policy$/i.test(label) ? label : `${label} Policy`;
 }
 
 function getCredentialTitle(credential: DisplayCredential | undefined, vctName: string | null): string {
