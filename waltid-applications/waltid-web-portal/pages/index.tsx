@@ -98,9 +98,9 @@ export default function Home() {
         <Button
           className="mt-6"
           color="secondary"
-          onClick={() => router.push('/verify/transaction')}
+          onClick={() => router.push('/credentials?mode=verification')}
         >
-          Open transaction demo
+          Open verification
         </Button>
       </div>
       <main className="flex flex-col items-center gap-5 justify-between mt-16 md:w-[740px] m-auto">

@@ -1,6 +1,6 @@
 import WaltIcon from "@/components/walt/logo/WaltIcon";
 import {CheckCircleIcon} from "@heroicons/react/24/outline";
-import {useContext, useEffect, useState} from "react";
+import {useContext, useEffect, useMemo, useState} from "react";
 import {useRouter} from "next/router";
 import axios from "axios";
 import nextConfig from "@/next.config";
@@ -10,6 +10,7 @@ import {EnvContext} from "@/pages/_app";
 export default function Success() {
   const env = useContext(EnvContext);
   const router = useRouter();
+  const isVerifier2Engine = router.query.engine?.toString() === 'verifier2';
   const [vctName, setVctName] = useState<string | null>(null);
 
   const [policyResults, setPolicyResults] = useState<
@@ -31,6 +32,8 @@ export default function Success() {
   >([]);
   const [index, setIndex] = useState<number>(0);
   const [modal, setModal] = useState<boolean>(false);
+  const [verifier2SessionInfo, setVerifier2SessionInfo] = useState<any | null>(null);
+  const [verifier2Error, setVerifier2Error] = useState<string | null>(null);
 
   function parseJwt(token: string) {
     return JSON.parse(Buffer.from(token.split('.')[1], 'base64').toString());
@@ -48,7 +51,31 @@ export default function Success() {
   };
 
   useEffect(() => {
-    if (!router.isReady) return;
+    if (!router.isReady || !router.query.sessionId) return;
+
+    if (isVerifier2Engine) {
+      const verifier2BaseUrl = env.NEXT_PUBLIC_VERIFIER2
+        ? env.NEXT_PUBLIC_VERIFIER2
+        : nextConfig.publicRuntimeConfig!.NEXT_PUBLIC_VERIFIER2;
+      axios
+        .get(
+          `${verifier2BaseUrl}/verification-session/${encodeURIComponent(router.query.sessionId.toString())}/info`
+        )
+        .then((response) => {
+          setVerifier2SessionInfo(response.data);
+          setVerifier2Error(null);
+        })
+        .catch((error) => {
+          const message = error?.response?.data?.errorDescription
+            || error?.response?.data?.message
+            || error?.message
+            || 'Could not load verifier2 session.';
+          setVerifier2Error(message);
+          console.error(error);
+        });
+      return;
+    }
+
     axios
       .get(
         `${env.NEXT_PUBLIC_VERIFIER ? env.NEXT_PUBLIC_VERIFIER : nextConfig.publicRuntimeConfig!.NEXT_PUBLIC_VERIFIER}/openid4vc/session/${router.query.sessionId}`
@@ -87,12 +114,6 @@ export default function Success() {
                     [parsedItem[1]]: parsedItem[2],
                     ...credentialWithSdJWTAttributes.credentialSubject,
                   };
-                  // credentialWithSdJWTAttributes.credentialSubject._sd.map((sdItem: string) => {
-                  //   if (sdItem === parsedItem[0]) {
-                  //     return `${parsedItem[1]}: ${parsedItem[2]}`
-                  //   }
-                  //   return sdItem;
-                  // })
                 });
                 credentialWithSdJWTAttributes.type = parsed.vc?.type
                 return credentialWithSdJWTAttributes;
@@ -127,7 +148,69 @@ export default function Success() {
           fetchVctName(vctResolutionUrl).then((name) => setVctName(name));
         }
       });
-  }, [router.isReady, env]);
+  }, [router.isReady, router.query.sessionId, isVerifier2Engine, env]);
+
+  const verifier2PolicyResults = useMemo(() => {
+    if (!verifier2SessionInfo) {
+      return null;
+    }
+    return verifier2SessionInfo.policy_results
+      ?? verifier2SessionInfo.policyResults
+      ?? verifier2SessionInfo.authorizationRequest?.policies?.policy_results
+      ?? null;
+  }, [verifier2SessionInfo]);
+
+  const verifier2PresentedCredentials = useMemo(() => {
+    if (!verifier2SessionInfo) {
+      return null;
+    }
+    return verifier2SessionInfo.presented_credentials
+      ?? verifier2SessionInfo.presentedCredentials
+      ?? verifier2SessionInfo.presented_presentations
+      ?? verifier2SessionInfo.presented_raw_data?.vpToken
+      ?? null;
+  }, [verifier2SessionInfo]);
+
+  if (isVerifier2Engine) {
+    return (
+      <div className="h-screen flex justify-center items-center bg-gray-50">
+        <div className="relative w-full h-full sm:h-auto sm:w-10/12 md:w-8/12 lg:w-8/12 text-center shadow-2xl rounded-lg pt-8 pb-8 px-10 bg-white">
+          <h1 className="text-3xl text-gray-900 text-center font-bold mb-10">
+            Verifier2 Session Result
+          </h1>
+          <div className="text-gray-600 mb-2">
+            Session ID: <span className="font-mono text-gray-800">{router.query.sessionId?.toString()}</span>
+          </div>
+          <div className="text-xl font-semibold text-gray-900 mb-8">
+            Status: {verifier2SessionInfo?.status ?? 'Unknown'}
+          </div>
+          {verifier2Error && (
+            <p className="text-sm text-red-600 break-all mb-6">{verifier2Error}</p>
+          )}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 text-left">
+            <div className="rounded-lg border border-gray-200 p-4">
+              <h2 className="text-lg font-semibold text-gray-900 mb-3">Policy Results</h2>
+              <pre className="text-xs text-gray-700 whitespace-pre-wrap break-all">
+                {JSON.stringify(verifier2PolicyResults ?? { message: 'No policy results available.' }, null, 2)}
+              </pre>
+            </div>
+            <div className="rounded-lg border border-gray-200 p-4">
+              <h2 className="text-lg font-semibold text-gray-900 mb-3">Presented Credentials</h2>
+              <pre className="text-xs text-gray-700 whitespace-pre-wrap break-all">
+                {JSON.stringify(verifier2PresentedCredentials ?? { message: 'No presented credentials available.' }, null, 2)}
+              </pre>
+            </div>
+          </div>
+          <div className="flex flex-col items-center mt-12">
+            <div className="flex flex-row gap-2 items-center content-center text-sm text-center text-gray-500">
+              <p className="">Secured by walt.id</p>
+              <WaltIcon height={15} width={15} type="gray" />
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="h-screen flex justify-center items-center bg-gray-50">
@@ -230,9 +313,9 @@ export default function Success() {
                             };
                           }
                         })
-                        .map((item, index) => {
+                        .map((item, idx) => {
                           return (
-                            <div key={index} className="flex flex-row py-1">
+                            <div key={idx} className="flex flex-row py-1">
                               <div className="text-gray-600 text-left w-1/2 capitalize leading-[1.1]">
                                 {item?.key}
                               </div>
@@ -294,11 +377,11 @@ export default function Success() {
                   is_success: policy.is_success,
                 };
               })
-              .map((policy, index) => {
+              .map((policy, idx) => {
                 return (
                   <div
                     key={policy.name}
-                    className={`flex items-center gap-3 overflow-hidden text-ellipsis whitespace-nowrap ${index % 2 == 1 ? 'sm:justify-self-end' : ''}`}
+                    className={`flex items-center gap-3 overflow-hidden text-ellipsis whitespace-nowrap ${idx % 2 == 1 ? 'sm:justify-self-end' : ''}`}
                   >
                     {policy.is_success ? (
                       <CheckCircleIcon className="h-4 text-green-600" />
