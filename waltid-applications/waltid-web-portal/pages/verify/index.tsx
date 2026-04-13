@@ -148,7 +148,7 @@ export default function Verification() {
           setWalletRequestUrl(data.fullAuthorizationRequestUrl ?? qrUrl);
           setLoading(false);
 
-          waitForVerifier2Completion(verifier2BaseUrl, data.sessionId).then((status) => {
+          waitForVerifier2Completion(verifier2BaseUrl, data.sessionId, () => cancelled).then((status) => {
             if (cancelled || !VERIFIER2_COMPLETED_STATUSES.includes(status)) {
               return;
             }
@@ -358,9 +358,12 @@ function encodeBase64Url(value: string) {
     .replace(/=+$/g, "");
 }
 
-async function waitForVerifier2Completion(verifier2BaseUrl: string, sessionId: string): Promise<string> {
+async function waitForVerifier2Completion(verifier2BaseUrl: string, sessionId: string, isCancelled: () => boolean = () => false,): Promise<string> {
   const maxAttempts = 120;
   for (let attempt = 0; attempt < maxAttempts; attempt++) {
+    if (isCancelled()) {
+      return ""
+    }
     const response = await axios.get<Verifier2StatusInfo>(
       `${verifier2BaseUrl}/verification-session/${encodeURIComponent(sessionId)}/info`,
     );
