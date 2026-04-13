@@ -7,48 +7,36 @@ import nextConfig from "@/next.config";
 import Modal from "@/components/walt/modal/BaseModal";
 import {EnvContext} from "@/pages/_app";
 
+type DisplayPolicyEntry = {
+  policy: string;
+  is_success: boolean;
+};
+
+type DisplayPolicyGroup = {
+  policyResults: DisplayPolicyEntry[];
+};
+
+type DisplayCredential = {
+  type?: string[] | string;
+  vct?: string;
+  credentialSubject?: Record<string, unknown>;
+  [key: string]: unknown;
+};
+
+const EMPTY_POLICY_GROUP: DisplayPolicyGroup = { policyResults: [] };
+
 export default function Success() {
   const env = useContext(EnvContext);
   const router = useRouter();
   const isVerifier2Engine = router.query.engine?.toString() === 'verifier2';
   const [vctName, setVctName] = useState<string | null>(null);
 
-  const [policyResults, setPolicyResults] = useState<
-    Array<{
-      policyResults: Array<{
-        policy: string;
-        is_success: boolean;
-      }>;
-    }>
-  >([]);
-  const [credentials, setCredentials] = useState<
-    Array<{
-      type: Array<string>;
-      vct: Array<string>;
-      credentialSubject: {
-        [key: string]: string;
-      };
-    }>
-  >([]);
+  const [policyResults, setPolicyResults] = useState<DisplayPolicyGroup[]>([]);
+  const [credentials, setCredentials] = useState<DisplayCredential[]>([]);
   const [index, setIndex] = useState<number>(0);
   const [modal, setModal] = useState<boolean>(false);
-  const [verifier2SessionInfo, setVerifier2SessionInfo] = useState<any | null>(null);
-  const [verifier2Error, setVerifier2Error] = useState<string | null>(null);
-
-  function parseJwt(token: string) {
-    return JSON.parse(Buffer.from(token.split('.')[1], 'base64').toString());
-  }
-
-  const fetchVctName = async (vctUrl: string) => {
-    try {
-      const response = await axios.get(vctUrl);
-      const bodyJson = response.data;
-      return bodyJson['name'];
-    } catch (error) {
-      console.error('Error fetching vct:', error);
-      return 'Unknown VCT'; // Fallback value if the request fails
-    }
-  };
+  const [statusLabel, setStatusLabel] = useState<string | null>(null);
+  const [pageError, setPageError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!router.isReady || !router.query.sessionId) return;
@@ -62,15 +50,28 @@ export default function Success() {
           `${verifier2BaseUrl}/verification-session/${encodeURIComponent(router.query.sessionId.toString())}/info`
         )
         .then((response) => {
-          setVerifier2SessionInfo(response.data);
-          setVerifier2Error(null);
+          const sessionInfo = response.data as Record<string, unknown>;
+          const rawPresentedCredentials = sessionInfo.presented_credentials
+            ?? sessionInfo.presentedCredentials
+            ?? sessionInfo.presented_presentations
+            ?? asRecord(sessionInfo.presented_raw_data)?.vpToken
+            ?? asRecord(sessionInfo.tokenResponse)?.vp_token;
+          const rawPolicyResults = sessionInfo.policy_results
+            ?? sessionInfo.policyResults
+            ?? asRecord(sessionInfo.authorizationRequest)?.policies;
+
+          setCredentials(normalizePresentedCredentials(rawPresentedCredentials));
+          setPolicyResults(normalizePolicyResults(rawPolicyResults));
+          setStatusLabel(typeof sessionInfo.status === "string" ? sessionInfo.status : "Unknown");
+          setPageError(null);
+          setVctName(null);
         })
         .catch((error) => {
           const message = error?.response?.data?.errorDescription
             || error?.response?.data?.message
             || error?.message
             || 'Could not load verifier2 session.';
-          setVerifier2Error(message);
+          setPageError(message);
           console.error(error);
         });
       return;
@@ -82,45 +83,13 @@ export default function Success() {
       )
       .then((response) => {
         let parsedToken = parseJwt(response.data.tokenResponse.vp_token);
-        let containsVP = !!parsedToken.vp?.verifiableCredential;
+        const parsedVp = asRecord(parsedToken.vp);
+        let containsVP = !!parsedVp?.verifiableCredential;
         let vcs = containsVP
-          ? parsedToken.vp?.verifiableCredential
+          ? parsedVp?.verifiableCredential
           : [response.data.tokenResponse.vp_token];
 
-        setCredentials(
-          Array.isArray(vcs)
-            ? vcs.map((vc: string) => {
-              if (typeof vc !== 'string') {
-                console.error(
-                  'Invalid VC format: expected a string but got',
-                  vc
-                );
-                return vc;
-              }
-              let split = vc.split('~');
-              let parsed = parseJwt(split[0]);
-
-              if (split.length === 1) return parsed.vc ? parsed.vc : parsed;
-              else {
-                let credentialWithSdJWTAttributes = { ...parsed };
-                split.slice(1).forEach((item) => {
-                  // If it is key binding jwt, skip
-                  if (item.split('.').length === 3) return;
-
-                  let parsedItem = JSON.parse(
-                    Buffer.from(item, 'base64').toString()
-                  );
-                  credentialWithSdJWTAttributes.credentialSubject = {
-                    [parsedItem[1]]: parsedItem[2],
-                    ...credentialWithSdJWTAttributes.credentialSubject,
-                  };
-                });
-                credentialWithSdJWTAttributes.type = parsed.vc?.type
-                return credentialWithSdJWTAttributes;
-              }
-            })
-            : []
-        );
+        setCredentials(normalizePresentedCredentials(vcs));
 
         setPolicyResults(() => {
           if (containsVP) {
@@ -143,83 +112,50 @@ export default function Success() {
 
         if (!containsVP) {
           const vct = parsedToken['vct'];
-          const vctUrl = new URL(vct);
-          const vctResolutionUrl = `${vctUrl.origin}/.well-known/vct${vctUrl.pathname}`;
-          fetchVctName(vctResolutionUrl).then((name) => setVctName(name));
+          if (typeof vct === "string") {
+            const vctUrl = new URL(vct);
+            const vctResolutionUrl = `${vctUrl.origin}/.well-known/vct${vctUrl.pathname}`;
+            fetchVctName(vctResolutionUrl).then((name) => setVctName(name));
+          }
         }
+        setStatusLabel(null);
+        setPageError(null);
+      })
+      .catch((error) => {
+        const message = error?.response?.data?.errorDescription
+          || error?.response?.data?.message
+          || error?.message
+          || 'Could not load verification session.';
+        setPageError(message);
+        console.error(error);
       });
   }, [router.isReady, router.query.sessionId, isVerifier2Engine, env]);
 
-  const verifier2PolicyResults = useMemo(() => {
-    if (!verifier2SessionInfo) {
-      return null;
+  useEffect(() => {
+    if (index < credentials.length) {
+      return;
     }
-    return verifier2SessionInfo.policy_results
-      ?? verifier2SessionInfo.policyResults
-      ?? verifier2SessionInfo.authorizationRequest?.policies?.policy_results
-      ?? null;
-  }, [verifier2SessionInfo]);
+    setIndex(0);
+  }, [credentials.length, index]);
 
-  const verifier2PresentedCredentials = useMemo(() => {
-    if (!verifier2SessionInfo) {
-      return null;
-    }
-    return verifier2SessionInfo.presented_credentials
-      ?? verifier2SessionInfo.presentedCredentials
-      ?? verifier2SessionInfo.presented_presentations
-      ?? verifier2SessionInfo.presented_raw_data?.vpToken
-      ?? null;
-  }, [verifier2SessionInfo]);
-
-  if (isVerifier2Engine) {
-    return (
-      <div className="h-screen flex justify-center items-center bg-gray-50">
-        <div className="relative w-full h-full sm:h-auto sm:w-10/12 md:w-8/12 lg:w-8/12 text-center shadow-2xl rounded-lg pt-8 pb-8 px-10 bg-white">
-          <h1 className="text-3xl text-gray-900 text-center font-bold mb-10">
-            Verifier2 Session Result
-          </h1>
-          <div className="text-gray-600 mb-2">
-            Session ID: <span className="font-mono text-gray-800">{router.query.sessionId?.toString()}</span>
-          </div>
-          <div className="text-xl font-semibold text-gray-900 mb-8">
-            Status: {verifier2SessionInfo?.status ?? 'Unknown'}
-          </div>
-          {verifier2Error && (
-            <p className="text-sm text-red-600 break-all mb-6">{verifier2Error}</p>
-          )}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 text-left">
-            <div className="rounded-lg border border-gray-200 p-4">
-              <h2 className="text-lg font-semibold text-gray-900 mb-3">Policy Results</h2>
-              <pre className="text-xs text-gray-700 whitespace-pre-wrap break-all">
-                {JSON.stringify(verifier2PolicyResults ?? { message: 'No policy results available.' }, null, 2)}
-              </pre>
-            </div>
-            <div className="rounded-lg border border-gray-200 p-4">
-              <h2 className="text-lg font-semibold text-gray-900 mb-3">Presented Credentials</h2>
-              <pre className="text-xs text-gray-700 whitespace-pre-wrap break-all">
-                {JSON.stringify(verifier2PresentedCredentials ?? { message: 'No presented credentials available.' }, null, 2)}
-              </pre>
-            </div>
-          </div>
-          <div className="flex flex-col items-center mt-12">
-            <div className="flex flex-row gap-2 items-center content-center text-sm text-center text-gray-500">
-              <p className="">Secured by walt.id</p>
-              <WaltIcon height={15} width={15} type="gray" />
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  }
+  const activeCredential = credentials[index];
+  const credentialRows = useMemo(
+    () => buildCredentialRows(activeCredential),
+    [activeCredential],
+  );
+  const activePolicyResults = policyResults[index + 1]?.policyResults
+    ?? policyResults[index]?.policyResults
+    ?? [];
+  const titleLabel = getCredentialTitle(activeCredential, vctName);
 
   return (
-    <div className="h-screen flex justify-center items-center bg-gray-50">
+    <div className="min-h-screen flex justify-center bg-gray-50 py-8 px-4 overflow-y-auto">
       <Modal show={modal} securedByWalt={false} onClose={() => setModal(false)}>
         <div className="flex flex-col items-center">
           <div className="w-full">
             <textarea
               value={JSON.stringify(
-                credentials[index]?.credentialSubject ?? credentials[index],
+                activeCredential?.credentialSubject ?? activeCredential,
                 null,
                 4
               )}
@@ -229,12 +165,25 @@ export default function Success() {
           </div>
         </div>
       </Modal>
-      <div className="relative w-full h-full sm:h-auto sm:w-10/12 md:w-8/12 lg:w-6/12 text-center shadow-2xl rounded-lg pt-8 pb-8 px-10 bg-white">
+      <div className="relative w-full sm:w-10/12 md:w-8/12 lg:w-6/12 text-center shadow-2xl rounded-lg pt-8 pb-8 px-6 sm:px-10 bg-white">
         <h1 className="text-3xl text-gray-900 text-center font-bold mb-10">
           Presented Credentials
         </h1>
+        {isVerifier2Engine && (
+          <div className="mb-8 text-sm text-gray-600">
+            <div>
+              Session ID: <span className="font-mono text-gray-800">{router.query.sessionId?.toString()}</span>
+            </div>
+            <div className="mt-2">
+              Status: <span className="font-semibold text-gray-800">{statusLabel ?? "Unknown"}</span>
+            </div>
+          </div>
+        )}
+        {pageError && (
+          <p className="text-sm text-red-600 break-all mb-6">{pageError}</p>
+        )}
         <div className="flex items-center justify-center">
-          {index !== 0 && (
+          {index !== 0 && credentials.length > 1 && (
             <button
               onClick={() => setIndex(index - 1)}
               className="text-gray-500 hover:text-gray-900 focus:outline-none absolute left-10"
@@ -255,7 +204,7 @@ export default function Success() {
               </svg>
             </button>
           )}
-          <div className="group h-[225px] w-[400px] [perspective:1000px]">
+          <div className={`group h-[225px] w-[400px] [perspective:1000px] ${credentials.length === 0 ? "hidden" : ""}`}>
             <div className="relative h-full w-full rounded-xl shadow-xl transition-all duration-500 [transform-style:preserve-3d] group-hover:[transform:rotateY(180deg)]">
               <div className="absolute inset-0">
                 <div className="flex h-full w-full flex-col drop-shadow-sm rounded-xl py-7 px-8 text-gray-100 cursor-pointer overflow-hidden bg-gradient-to-r from-green-700 to-green-900 z-[-2]">
@@ -264,73 +213,29 @@ export default function Success() {
                   </div>
                   <div className="mb-8 mt-12">
                     <h6 className={'text-2xl font-bold overflow-hidden text-ellipsis whitespace-nowrap'}>
-                      {credentials[index]?.type
-                        ? credentials[index]?.type[
-                          credentials[index].type.length - 1
-                        ].replace(/([a-z0-9])([A-Z])/g, '$1 $2')
-                        : credentials[index]?.vct
-                          ? vctName
-                          : credentials[index]?.vct}
+                      {titleLabel}
                     </h6>
                   </div>
                 </div>
               </div>
               <div className="absolute inset-0 h-full w-full rounded-xl bg-white p-5 text-slate-200 [transform:rotateY(180deg)] [backface-visibility:hidden] overflow-y-scroll">
-                {credentials[index] && credentials[index].credentialSubject &&
-                  Object.keys(credentials[index].credentialSubject)
-                    .map((key) => {
-                      if (
-                        typeof credentials[index].credentialSubject[key] ===
-                        'string' &&
-                        credentials[index].credentialSubject[key].length > 0 &&
-                        credentials[index].credentialSubject[key].length < 20
-                      ) {
-                        return {
-                          key: (
-                            key.charAt(0).toUpperCase() + key.slice(1)
-                          ).replace(/([a-z0-9])([A-Z])/g, '$1 $2'),
-                          value: credentials[index].credentialSubject[key],
-                        };
-                      }
-                    })
-                    .filter((item) => item !== undefined).length > 0 && (
-                    <>
-                      {Object.keys(credentials[index].credentialSubject)
-                        .map((key) => {
-                          if (
-                            typeof credentials[index].credentialSubject[key] ===
-                            'string' &&
-                            credentials[index].credentialSubject[key].length >
-                            0 &&
-                            credentials[index].credentialSubject[key].length <
-                            20
-                          ) {
-                            return {
-                              key: (
-                                key.charAt(0).toUpperCase() + key.slice(1)
-                              ).replace(/([a-z0-9])([A-Z])/g, '$1 $2'),
-                              value: credentials[index].credentialSubject[key],
-                            };
-                          }
-                        })
-                        .map((item, idx) => {
-                          return (
-                            <div key={idx} className="flex flex-row py-1">
-                              <div className="text-gray-600 text-left w-1/2 capitalize leading-[1.1]">
-                                {item?.key}
-                              </div>
-                              <div className="text-slate-800 text-left w-1/2 text-[#313233]">
-                                {item?.value}
-                              </div>
-                            </div>
-                          );
-                        })}
-                    </>
-                  )}
+                {credentialRows.map((item) => {
+                  return (
+                    <div key={item.key} className="flex flex-row py-1">
+                      <div className="text-gray-600 text-left w-1/2 capitalize leading-[1.1]">
+                        {item.key}
+                      </div>
+                      <div className="text-slate-800 text-left w-1/2 text-[#313233]">
+                        {item.value}
+                      </div>
+                    </div>
+                  );
+                })}
                 <div className="flex flex-row py-1">
                   <button
                     onClick={() => setModal(true)}
                     className="text-gray-500 text-center w-full capitalize leading-[1.1] underline"
+                    disabled={!activeCredential}
                   >
                     View Credential In JSON
                   </button>
@@ -338,7 +243,12 @@ export default function Success() {
               </div>
             </div>
           </div>
-          {index !== credentials.length - 1 && (
+          {credentials.length === 0 && (
+            <div className="rounded-xl border border-gray-200 w-full max-w-[400px] px-6 py-10 text-gray-500 text-sm">
+              No presented credential payload is available for this session.
+            </div>
+          )}
+          {index !== credentials.length - 1 && credentials.length > 1 && (
             <button
               onClick={() => setIndex(index + 1)}
               className="text-gray-500 hover:text-gray-900 focus:outline-none absolute right-10"
@@ -362,12 +272,12 @@ export default function Success() {
         </div>
         <div className="mt-10 px-12">
           <div className="flex flex-row items-center justify-center mb-5 text-gray-500">
-            {policyResults[index + 1]?.policyResults.length
+            {activePolicyResults.length
               ? 'The VP was verified along with:'
               : 'The VP was not verified against any policies'}
           </div>
           <div className="xs:grid xs:grid-cols-2 items-center justify-center">
-            {policyResults[index + 1]?.policyResults
+            {activePolicyResults
               .map((policy) => {
                 return {
                   name:
@@ -403,4 +313,240 @@ export default function Success() {
       </div>
     </div>
   );
+}
+
+function asRecord(value: unknown): Record<string, unknown> | null {
+  if (value && typeof value === "object" && !Array.isArray(value)) {
+    return value as Record<string, unknown>;
+  }
+  return null;
+}
+
+function decodeBase64Url(value: string): string {
+  const normalized = value.replace(/-/g, "+").replace(/_/g, "/");
+  const padded = normalized + "=".repeat((4 - (normalized.length % 4)) % 4);
+  return Buffer.from(padded, "base64").toString();
+}
+
+function parseJwt(token: string): Record<string, unknown> {
+  try {
+    const payload = token.split(".")[1];
+    if (!payload) {
+      return {};
+    }
+    return JSON.parse(decodeBase64Url(payload)) as Record<string, unknown>;
+  } catch (error) {
+    console.error("Could not parse JWT payload", error);
+    return {};
+  }
+}
+
+const fetchVctName = async (vctUrl: string) => {
+  try {
+    const response = await axios.get(vctUrl);
+    const bodyJson = response.data;
+    return bodyJson['name'] as string;
+  } catch (error) {
+    console.error('Error fetching vct:', error);
+    return 'Unknown VCT';
+  }
+};
+
+function toDisplayCredential(value: unknown): DisplayCredential | null {
+  const record = asRecord(value);
+  if (!record) {
+    return null;
+  }
+
+  const vc = asRecord(record.vc);
+  if (vc) {
+    return toDisplayCredential(vc);
+  }
+
+  const credentialSubject = asRecord(record.credentialSubject) ?? asRecord(record.claims);
+  const hasCredentialMarkers = Boolean(
+    credentialSubject ||
+    record.type ||
+    record.vct ||
+    record.id ||
+    record.format
+  );
+  if (!hasCredentialMarkers) {
+    return null;
+  }
+
+  const credential: DisplayCredential = {
+    ...record,
+    ...(credentialSubject ? { credentialSubject } : {}),
+  };
+
+  if (Array.isArray(record.type) || typeof record.type === "string") {
+    credential.type = record.type as string[] | string;
+  }
+  if (typeof record.vct === "string") {
+    credential.vct = record.vct;
+  }
+
+  return credential;
+}
+
+function parseCredentialToken(vcToken: string): DisplayCredential | null {
+  if (!vcToken || typeof vcToken !== "string") {
+    return null;
+  }
+
+  const split = vcToken.split("~");
+  const parsed = parseJwt(split[0]);
+
+  if (split.length === 1) {
+    return toDisplayCredential(parsed) ?? toDisplayCredential(parsed.vc) ?? null;
+  }
+
+  const credentialWithSdJWTAttributes = (toDisplayCredential(parsed) ?? {}) as DisplayCredential;
+  const parsedVc = asRecord(parsed.vc);
+  split.slice(1).forEach((item) => {
+    if (item.split('.').length === 3) {
+      return;
+    }
+
+    try {
+      const parsedItem = JSON.parse(decodeBase64Url(item)) as unknown;
+      if (!Array.isArray(parsedItem) || parsedItem.length < 3 || typeof parsedItem[1] !== "string") {
+        return;
+      }
+
+      const existingCredentialSubject = asRecord(credentialWithSdJWTAttributes.credentialSubject) ?? {};
+      credentialWithSdJWTAttributes.credentialSubject = {
+        [parsedItem[1]]: parsedItem[2],
+        ...existingCredentialSubject,
+      };
+    } catch (error) {
+      console.error("Could not decode SD-JWT disclosure", error);
+    }
+  });
+
+  if (Array.isArray(parsedVc?.type) || typeof parsedVc?.type === "string") {
+    credentialWithSdJWTAttributes.type = parsedVc?.type as string[] | string;
+  }
+
+  return credentialWithSdJWTAttributes;
+}
+
+function normalizePresentedCredentials(raw: unknown): DisplayCredential[] {
+  if (raw == null) {
+    return [];
+  }
+
+  if (Array.isArray(raw)) {
+    return raw.flatMap((item) => normalizePresentedCredentials(item));
+  }
+
+  if (typeof raw === "string") {
+    const parsed = parseCredentialToken(raw);
+    return parsed ? [parsed] : [];
+  }
+
+  const record = asRecord(raw);
+  if (!record) {
+    return [];
+  }
+
+  const vp = asRecord(record.vp);
+  if (vp?.verifiableCredential) {
+    return normalizePresentedCredentials(vp.verifiableCredential);
+  }
+
+  if (record.vp_token) {
+    return normalizePresentedCredentials(record.vp_token);
+  }
+  if (record.vpToken) {
+    return normalizePresentedCredentials(record.vpToken);
+  }
+
+  const credential = toDisplayCredential(record);
+  return credential ? [credential] : [];
+}
+
+function normalizePolicyResults(raw: unknown): DisplayPolicyGroup[] {
+  if (!raw) {
+    return [EMPTY_POLICY_GROUP];
+  }
+
+  const policyRecord = asRecord(raw);
+  if (policyRecord?.results) {
+    return normalizePolicyResults(policyRecord.results);
+  }
+  if (policyRecord?.policyResults) {
+    return normalizePolicyResults(policyRecord.policyResults);
+  }
+  if (policyRecord?.policy_results) {
+    return normalizePolicyResults(policyRecord.policy_results);
+  }
+
+  const rawPolicies = Array.isArray(raw) ? raw : [raw];
+  const normalizedPolicies = rawPolicies
+    .map((policy) => {
+      const policyObj = asRecord(policy);
+      if (!policyObj) {
+        return null;
+      }
+
+      const policyNameRaw = policyObj.policy ?? policyObj.name ?? policyObj.id;
+      const policyName = typeof policyNameRaw === "string" ? policyNameRaw : "Policy";
+      const isSuccessRaw = policyObj.is_success ?? policyObj.isSuccess ?? policyObj.result;
+      const isSuccess = typeof isSuccessRaw === "boolean" ? isSuccessRaw : Boolean(isSuccessRaw);
+
+      return {
+        policy: policyName,
+        is_success: isSuccess,
+      };
+    })
+    .filter((policy): policy is DisplayPolicyEntry => policy !== null);
+
+  if (!normalizedPolicies.length) {
+    return [EMPTY_POLICY_GROUP];
+  }
+
+  return [EMPTY_POLICY_GROUP, { policyResults: normalizedPolicies }];
+}
+
+function getCredentialTitle(credential: DisplayCredential | undefined, vctName: string | null): string {
+  if (!credential) {
+    return "Credential";
+  }
+
+  if (Array.isArray(credential.type) && credential.type.length > 0) {
+    return credential.type[credential.type.length - 1].replace(/([a-z0-9])([A-Z])/g, "$1 $2");
+  }
+  if (typeof credential.type === "string" && credential.type.length > 0) {
+    return credential.type.replace(/([a-z0-9])([A-Z])/g, "$1 $2");
+  }
+  if (credential.vct) {
+    return vctName ?? credential.vct;
+  }
+
+  return "Credential";
+}
+
+function buildCredentialRows(credential: DisplayCredential | undefined): Array<{ key: string; value: string }> {
+  if (!credential) {
+    return [];
+  }
+
+  const sourceRecord = asRecord(credential.credentialSubject) ?? asRecord(credential);
+  if (!sourceRecord) {
+    return [];
+  }
+
+  return Object.entries(sourceRecord)
+    .map(([key, value]) => {
+      if (typeof value !== "string" || value.length === 0 || value.length >= 40) {
+        return null;
+      }
+      return {
+        key: (key.charAt(0).toUpperCase() + key.slice(1)).replace(/([a-z0-9])([A-Z])/g, "$1 $2"),
+        value,
+      };
+    })
+    .filter((item): item is { key: string; value: string } => item !== null);
 }
