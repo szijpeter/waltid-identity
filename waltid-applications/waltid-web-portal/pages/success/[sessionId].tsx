@@ -1,5 +1,5 @@
 import WaltIcon from "@/components/walt/logo/WaltIcon";
-import {CheckCircleIcon} from "@heroicons/react/24/outline";
+import {CheckCircleIcon, XCircleIcon} from "@heroicons/react/24/outline";
 import {useContext, useEffect, useMemo, useState} from "react";
 import {useRouter} from "next/router";
 import axios from "axios";
@@ -308,7 +308,7 @@ export default function Success() {
                         {policy.is_success ? (
                           <CheckCircleIcon className="h-4 text-green-600 mt-[3px]" />
                         ) : (
-                          <CheckCircleIcon className="h-4 text-red-600 mt-[3px]" />
+                          <XCircleIcon className="h-4 text-red-600 mt-[3px]" />
                         )}
                         <div className="text-left">
                           <div>{policyLabel}</div>
@@ -349,7 +349,7 @@ export default function Success() {
                     {policy.is_success ? (
                       <CheckCircleIcon className="h-4 text-green-600 mt-[3px] shrink-0" />
                     ) : (
-                      <CheckCircleIcon className="h-4 text-red-600 mt-[3px] shrink-0" />
+                      <XCircleIcon className="h-4 text-red-600 mt-[3px]" />
                     )}
                     <div className="text-left break-words">{policy.name}</div>
                   </div>
