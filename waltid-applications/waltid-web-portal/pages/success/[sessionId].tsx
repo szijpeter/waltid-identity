@@ -29,6 +29,7 @@ type DisplayCredential = {
 };
 
 const EMPTY_POLICY_GROUP: DisplayPolicyGroup = { policyResults: [] };
+const VERIFIER2_PRESENTED_CREDENTIALS_CACHE_PREFIX = "portal:presented-credentials:";
 
 export default function Success() {
   const env = useContext(EnvContext);
@@ -56,11 +57,14 @@ export default function Success() {
         )
         .then((response) => {
           const sessionInfo = response.data as Record<string, unknown>;
+          const sessionId = router.query.sessionId?.toString();
+          const cachedPresentedCredentials = sessionId ? readCachedPresentedCredentials(sessionId) : null;
           const rawPresentedCredentials = sessionInfo.presented_credentials
             ?? sessionInfo.presentedCredentials
             ?? sessionInfo.presented_presentations
             ?? asRecord(sessionInfo.presented_raw_data)?.vpToken
-            ?? asRecord(sessionInfo.tokenResponse)?.vp_token;
+            ?? asRecord(sessionInfo.tokenResponse)?.vp_token
+            ?? cachedPresentedCredentials;
           const rawPolicyResults = sessionInfo.policy_results
             ?? sessionInfo.policyResults
             ?? asRecord(sessionInfo.authorizationRequest)?.policies;
@@ -75,7 +79,7 @@ export default function Success() {
           const message = error?.response?.data?.errorDescription
             || error?.response?.data?.message
             || error?.message
-            || 'Could not load verifier2 session.';
+            || 'Could not load verification session.';
           setPageError(message);
           console.error(error);
         });
@@ -153,6 +157,10 @@ export default function Success() {
     () => activePolicyResults.filter((policy) => isTransactionDataPolicyId(policy.policyId ?? policy.policy)),
     [activePolicyResults],
   );
+  const nonTransactionPolicyResults = useMemo(
+    () => activePolicyResults.filter((policy) => !isTransactionDataPolicyId(policy.policyId ?? policy.policy)),
+    [activePolicyResults],
+  );
   const titleLabel = getCredentialTitle(activeCredential, vctName);
 
   return (
@@ -189,94 +197,99 @@ export default function Success() {
         {pageError && (
           <p className="text-sm text-red-600 break-all mb-6">{pageError}</p>
         )}
-        <div className="flex items-center justify-center">
-          {index !== 0 && credentials.length > 1 && (
-            <button
-              onClick={() => setIndex(index - 1)}
-              className="text-gray-500 hover:text-gray-900 focus:outline-none absolute left-10"
-            >
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                className="h-6 w-6 mr-2"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
+        {credentials.length > 0 ? (
+          <div className="flex items-center justify-center">
+            {index !== 0 && credentials.length > 1 && (
+              <button
+                onClick={() => setIndex(index - 1)}
+                className="text-gray-500 hover:text-gray-900 focus:outline-none absolute left-10"
               >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M15 19l-7-7 7-7"
-                />
-              </svg>
-            </button>
-          )}
-          <div className={`group h-[225px] w-[400px] [perspective:1000px] ${credentials.length === 0 ? "hidden" : ""}`}>
-            <div className="relative h-full w-full rounded-xl shadow-xl transition-all duration-500 [transform-style:preserve-3d] group-hover:[transform:rotateY(180deg)]">
-              <div className="absolute inset-0">
-                <div className="flex h-full w-full flex-col drop-shadow-sm rounded-xl py-7 px-8 text-gray-100 cursor-pointer overflow-hidden bg-gradient-to-r from-green-700 to-green-900 z-[-2]">
-                  <div className="flex flex-row">
-                    <WaltIcon height={35} width={35} outline type="white" />
-                  </div>
-                  <div className="mb-8 mt-12">
-                    <h6 className={'text-2xl font-bold overflow-hidden text-ellipsis whitespace-nowrap'}>
-                      {titleLabel}
-                    </h6>
-                  </div>
-                </div>
-              </div>
-              <div className="absolute inset-0 h-full w-full rounded-xl bg-white p-5 text-slate-200 [transform:rotateY(180deg)] [backface-visibility:hidden] overflow-y-scroll">
-                {credentialRows.map((item) => {
-                  return (
-                    <div key={item.key} className="flex flex-row py-1">
-                      <div className="text-gray-600 text-left w-1/2 capitalize leading-[1.1]">
-                        {item.key}
-                      </div>
-                      <div className="text-slate-800 text-left w-1/2 text-[#313233]">
-                        {item.value}
-                      </div>
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  className="h-6 w-6 mr-2"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M15 19l-7-7 7-7"
+                  />
+                </svg>
+              </button>
+            )}
+            <div className="group h-[225px] w-[400px] [perspective:1000px]">
+              <div className="relative h-full w-full rounded-xl shadow-xl transition-all duration-500 [transform-style:preserve-3d] group-hover:[transform:rotateY(180deg)]">
+                <div className="absolute inset-0">
+                  <div className="flex h-full w-full flex-col drop-shadow-sm rounded-xl py-7 px-8 text-gray-100 cursor-pointer overflow-hidden bg-gradient-to-r from-green-700 to-green-900 z-[-2]">
+                    <div className="flex flex-row">
+                      <WaltIcon height={35} width={35} outline type="white" />
                     </div>
-                  );
-                })}
-                <div className="flex flex-row py-1">
-                  <button
-                    onClick={() => setModal(true)}
-                    className="text-gray-500 text-center w-full capitalize leading-[1.1] underline"
-                    disabled={!activeCredential}
-                  >
-                    View Credential In JSON
-                  </button>
+                    <div className="mb-8 mt-12">
+                      <h6 className={'text-2xl font-bold overflow-hidden text-ellipsis whitespace-nowrap'}>
+                        {titleLabel}
+                      </h6>
+                    </div>
+                  </div>
+                </div>
+                <div className="absolute inset-0 h-full w-full rounded-xl bg-white p-5 text-slate-200 [transform:rotateY(180deg)] [backface-visibility:hidden] overflow-y-scroll">
+                  {credentialRows.map((item) => {
+                    return (
+                      <div key={item.key} className="flex flex-row py-1">
+                        <div className="text-gray-600 text-left w-1/2 capitalize leading-[1.1]">
+                          {item.key}
+                        </div>
+                        <div className="text-slate-800 text-left w-1/2 text-[#313233]">
+                          {item.value}
+                        </div>
+                      </div>
+                    );
+                  })}
+                  <div className="flex flex-row py-1">
+                    <button
+                      onClick={() => setModal(true)}
+                      className="text-gray-500 text-center w-full capitalize leading-[1.1] underline"
+                      disabled={!activeCredential}
+                    >
+                      View Credential In JSON
+                    </button>
+                  </div>
                 </div>
               </div>
+            </div>
+            {index !== credentials.length - 1 && credentials.length > 1 && (
+              <button
+                onClick={() => setIndex(index + 1)}
+                className="text-gray-500 hover:text-gray-900 focus:outline-none absolute right-10"
+              >
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  className="h-6 w-6 ml-2"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M9 5l7 7-7 7"
+                  />
+                </svg>
+              </button>
+            )}
+          </div>
+        ) : (
+          <div className="rounded-xl border border-gray-200 w-full max-w-[640px] mx-auto px-6 py-6 text-sm text-gray-600 text-left">
+            <div className="font-medium text-gray-700 mb-2">No credential payload available</div>
+            <div>
+              This can happen after session finalization: credential payloads may be cleared while policy outcomes
+              remain available.
             </div>
           </div>
-          {credentials.length === 0 && (
-            <div className="rounded-xl border border-gray-200 w-full max-w-[400px] px-6 py-10 text-gray-500 text-sm">
-              No presented credential payload is available for this session.
-            </div>
-          )}
-          {index !== credentials.length - 1 && credentials.length > 1 && (
-            <button
-              onClick={() => setIndex(index + 1)}
-              className="text-gray-500 hover:text-gray-900 focus:outline-none absolute right-10"
-            >
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                className="h-6 w-6 ml-2"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M9 5l7 7-7 7"
-                />
-              </svg>
-            </button>
-          )}
-        </div>
+        )}
         <div className="mt-10 px-12">
           {isVerifier2Engine && (
             <div className="mb-8">
@@ -315,12 +328,12 @@ export default function Success() {
             </div>
           )}
           <div className="flex flex-row items-center justify-center mb-5 text-gray-500">
-            {activePolicyResults.length
+            {nonTransactionPolicyResults.length
               ? 'The VP was verified along with:'
-              : 'The VP was not verified against any policies'}
+              : 'No additional non-transaction policy results were reported.'}
           </div>
-          <div className="xs:grid xs:grid-cols-2 items-center justify-center">
-            {activePolicyResults
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-2 gap-x-8 items-start justify-center">
+            {nonTransactionPolicyResults
               .map((policy) => {
                 return {
                   name: toPolicyDisplayName(policy.policyId ?? policy.policy),
@@ -331,14 +344,14 @@ export default function Success() {
                 return (
                   <div
                     key={policy.name}
-                    className={`flex items-center gap-3 overflow-hidden text-ellipsis whitespace-nowrap ${idx % 2 == 1 ? 'sm:justify-self-end' : ''}`}
+                    className={`flex items-start gap-3 min-w-0 ${idx % 2 == 1 ? 'sm:justify-self-end' : ''}`}
                   >
                     {policy.is_success ? (
-                      <CheckCircleIcon className="h-4 text-green-600" />
+                      <CheckCircleIcon className="h-4 text-green-600 mt-[3px] shrink-0" />
                     ) : (
-                      <CheckCircleIcon className="h-4 text-red-600" />
+                      <CheckCircleIcon className="h-4 text-red-600 mt-[3px] shrink-0" />
                     )}
-                    <div>{policy.name}</div>
+                    <div className="text-left break-words">{policy.name}</div>
                   </div>
                 );
               })}
@@ -725,6 +738,20 @@ function formatPolicyLabel(policyId: string): string {
 function toPolicyDisplayName(policyId: string): string {
   const label = formatPolicyLabel(policyId);
   return /policy$/i.test(label) ? label : `${label} Policy`;
+}
+
+function readCachedPresentedCredentials(sessionId: string): unknown {
+  if (typeof window === "undefined") {
+    return null;
+  }
+
+  try {
+    const raw = window.sessionStorage.getItem(`${VERIFIER2_PRESENTED_CREDENTIALS_CACHE_PREFIX}${sessionId}`);
+    return raw ? JSON.parse(raw) : null;
+  } catch (error) {
+    console.warn("Could not read cached presented credentials snapshot", error);
+    return null;
+  }
 }
 
 function getCredentialTitle(credential: DisplayCredential | undefined, vctName: string | null): string {

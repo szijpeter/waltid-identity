@@ -8,6 +8,8 @@ import React, {useContext, useState} from "react";
 import {CredentialsContext} from "@/pages/_app";
 import {useRouter} from "next/router";
 
+const TRANSACTION_DATA_SUPPORTED_SELECTED_FORMAT = 'SD-JWT + IETF SD-JWT VC';
+
 export default function VerificationSection() {
   const router = useRouter();
   const [AvailableCredentials] = useContext(CredentialsContext);
@@ -35,6 +37,12 @@ export default function VerificationSection() {
   const [credentialsToIssue, setCredentialsToIssue] = useState<
     AvailableCredential[]
   >([]);
+  const selectedTransactionFormat = credentialsToIssue[0]?.selectedFormat?.toString() ?? '';
+  const isUnsupportedTransactionFormat =
+    transactionDataEnabled &&
+    credentialsToIssue.length === 1 &&
+    selectedTransactionFormat.length > 0 &&
+    !isTransactionDataSupportedSelectedFormat(selectedTransactionFormat);
 
   React.useEffect(() => {
     setCredentialsToIssue(
@@ -70,6 +78,9 @@ export default function VerificationSection() {
       }
     } else if (credentialsToIssue.length !== 1) {
       alert('Transaction data verification currently requires exactly one selected credential.');
+      return;
+    } else if (!isTransactionDataSupportedSelectedFormat(credentialsToIssue[0]?.selectedFormat?.toString())) {
+      alert('Transaction data verification currently supports only SD-JWT + IETF SD-JWT VC in this flow.');
       return;
     }
 
@@ -137,9 +148,19 @@ export default function VerificationSection() {
             onChange={(event) => setTransactionDataEnabled(event.target.checked)}
             className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-600"
           />
-          <span className="text-gray-900">Enable transaction data (routes verification via verifier2)</span>
+          <span className="text-gray-900">Enable transaction data</span>
         </label>
       </div>
+      {transactionDataEnabled && (
+        <p className="text-sm text-gray-500 text-left mt-3">
+          Transaction data is currently supported for format: <span className="font-medium">SD-JWT + IETF SD-JWT VC</span>.
+        </p>
+      )}
+      {isUnsupportedTransactionFormat && (
+        <p className="text-sm text-red-600 text-left mt-2">
+          Selected format <span className="font-medium">{selectedTransactionFormat}</span> does not support transaction data in this flow.
+        </p>
+      )}
       {transactionDataEnabled && (
         <div className="mt-6 grid grid-cols-1 md:grid-cols-2 gap-4">
           <InputField
@@ -191,7 +212,7 @@ export default function VerificationSection() {
       </h3>
       {transactionDataEnabled && (
         <p className="text-sm text-gray-500 text-left mt-2">
-          Policy toggles are disabled in transaction mode because verifier2 uses transaction and presentation policies.
+          Policy toggles are disabled in transaction mode because transaction and presentation policies are applied automatically.
         </p>
       )}
       <div className="flex flex-row justify-start mt-8">
@@ -246,4 +267,8 @@ export default function VerificationSection() {
       </div>
     </>
   );
+}
+
+function isTransactionDataSupportedSelectedFormat(selectedFormat?: string): boolean {
+  return selectedFormat === TRANSACTION_DATA_SUPPORTED_SELECTED_FORMAT;
 }

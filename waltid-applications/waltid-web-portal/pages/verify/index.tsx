@@ -17,9 +17,20 @@ const BUTTON_COPY_TEXT_COPIED = 'Copied';
 const TRANSACTION_DATA_TYPE = "org.waltid.transaction-data.payment-authorization";
 const TRANSACTION_CREDENTIAL_ID = "selected_credential";
 const VERIFIER2_COMPLETED_STATUSES = ["SUCCESSFUL", "FAILED", "COMPLETED"];
+const TRANSACTION_DATA_SUPPORTED_SELECTED_FORMAT = "SD-JWT + IETF SD-JWT VC";
+const VERIFIER2_PRESENTED_CREDENTIALS_CACHE_PREFIX = "portal:presented-credentials:";
 
 type Verifier2StatusInfo = {
   status?: string;
+  presented_credentials?: unknown;
+  presentedCredentials?: unknown;
+  presented_presentations?: unknown;
+  presented_raw_data?: {
+    vpToken?: unknown;
+  };
+  tokenResponse?: {
+    vp_token?: unknown;
+  };
 };
 
 export default function Verification() {
@@ -85,10 +96,12 @@ export default function Verification() {
           if (credentials.length !== 1) {
             throw new Error('Transaction data verification currently requires exactly one selected credential.');
           }
+          if (!isTransactionDataSupportedSelectedFormat(format)) {
+            throw new Error('Transaction data verification currently supports only SD-JWT + IETF SD-JWT VC in this flow.');
+          }
 
           const selectedCredential = credentials[0];
           const verifier2Format = mapSelectedFormatToVerifier2Format(format);
-          const credentialType = getCredentialType(selectedCredential.offer?.type, selectedCredential.title);
           const encodedTransactionData = encodeBase64Url(JSON.stringify({
             type: TRANSACTION_DATA_TYPE,
             credential_ids: [TRANSACTION_CREDENTIAL_ID],
@@ -107,7 +120,6 @@ export default function Verification() {
                 credentials: [
                   buildTransactionCredentialQuery(
                     verifier2Format,
-                    credentialType,
                     issuerBaseUrl,
                   ),
                 ],
@@ -125,7 +137,7 @@ export default function Verification() {
           };
           const qrUrl = data.bootstrapAuthorizationRequestUrl ?? data.fullAuthorizationRequestUrl ?? "";
           if (!qrUrl) {
-            throw new Error('Verifier2 did not return an authorization request URL.');
+            throw new Error('Verification service did not return an authorization request URL.');
           }
 
           if (cancelled) {
@@ -308,44 +320,30 @@ export default function Verification() {
   );
 }
 
-function mapSelectedFormatToVerifier2Format(selectedFormat: string): "dc+sd-jwt" | "jwt_vc_json" {
-  return selectedFormat === 'SD-JWT + IETF SD-JWT VC' ? "dc+sd-jwt" : "jwt_vc_json";
+function mapSelectedFormatToVerifier2Format(selectedFormat: string): "dc+sd-jwt" {
+  if (selectedFormat !== TRANSACTION_DATA_SUPPORTED_SELECTED_FORMAT) {
+    throw new Error("Transaction data verification currently supports only SD-JWT + IETF SD-JWT VC in this flow.");
+  }
+  return "dc+sd-jwt";
 }
 
 function buildTransactionCredentialQuery(
-  format: "dc+sd-jwt" | "jwt_vc_json",
-  credentialType: string,
+  format: "dc+sd-jwt",
   issuerBaseUrl: string,
 ) {
-  if (format === "dc+sd-jwt") {
-    return {
-      id: TRANSACTION_CREDENTIAL_ID,
-      format: "dc+sd-jwt",
-      meta: {
-        vct_values: [
-          `${issuerBaseUrl}/identity_credential`,
-          `${issuerBaseUrl}/draft13/IdentityCredential`,
-        ],
-      },
-      claims: [
-        { path: ["given_name"] },
-        { path: ["family_name"] },
-        { path: ["address", "street_address"] },
-      ],
-      require_cryptographic_holder_binding: true,
-    };
-  }
-
   return {
     id: TRANSACTION_CREDENTIAL_ID,
-    format: "jwt_vc_json",
+    format,
     meta: {
-      type_values: [[credentialType]],
+      vct_values: [
+        `${issuerBaseUrl}/identity_credential`,
+        `${issuerBaseUrl}/draft13/IdentityCredential`,
+      ],
     },
     claims: [
-      { path: ["credentialSubject", "given_name"] },
-      { path: ["credentialSubject", "family_name"] },
-      { path: ["credentialSubject", "address", "street_address"] },
+      { path: ["given_name"] },
+      { path: ["family_name"] },
+      { path: ["address", "street_address"] },
     ],
     require_cryptographic_holder_binding: true,
   };
@@ -366,6 +364,7 @@ async function waitForVerifier2Completion(verifier2BaseUrl: string, sessionId: s
     const response = await axios.get<Verifier2StatusInfo>(
       `${verifier2BaseUrl}/verification-session/${encodeURIComponent(sessionId)}/info`,
     );
+    cacheVerifier2PresentedCredentials(sessionId, response.data);
     const status = response.data.status ?? "";
     if (VERIFIER2_COMPLETED_STATUSES.includes(status)) {
       return status;
@@ -380,4 +379,37 @@ function getCredentialType(typeList: any, fallback: string): string {
     return typeList[typeList.length - 1];
   }
   return fallback;
+}
+
+function isTransactionDataSupportedSelectedFormat(selectedFormat: string): boolean {
+  return selectedFormat === TRANSACTION_DATA_SUPPORTED_SELECTED_FORMAT;
+}
+
+function extractPresentedCredentials(statusInfo: Verifier2StatusInfo): unknown {
+  return statusInfo.presented_credentials
+    ?? statusInfo.presentedCredentials
+    ?? statusInfo.presented_presentations
+    ?? statusInfo.presented_raw_data?.vpToken
+    ?? statusInfo.tokenResponse?.vp_token
+    ?? null;
+}
+
+function cacheVerifier2PresentedCredentials(sessionId: string, statusInfo: Verifier2StatusInfo): void {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  const presented = extractPresentedCredentials(statusInfo);
+  if (!presented) {
+    return;
+  }
+
+  try {
+    window.sessionStorage.setItem(
+      `${VERIFIER2_PRESENTED_CREDENTIALS_CACHE_PREFIX}${sessionId}`,
+      JSON.stringify(presented),
+    );
+  } catch (error) {
+    console.warn("Could not cache presented credentials snapshot", error);
+  }
 }
