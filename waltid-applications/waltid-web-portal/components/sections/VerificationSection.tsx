@@ -7,8 +7,7 @@ import Button from "@/components/walt/button/Button";
 import React, {useContext, useState} from "react";
 import {CredentialsContext} from "@/pages/_app";
 import {useRouter} from "next/router";
-
-const TRANSACTION_DATA_SUPPORTED_SELECTED_FORMAT = 'SD-JWT + IETF SD-JWT VC';
+import {TRANSACTION_DATA_SUPPORTED_SELECTED_FORMAT, isTransactionDataSupportedSelectedFormat} from "@/utils/transactionData";
 
 export default function VerificationSection() {
   const router = useRouter();
@@ -34,6 +33,7 @@ export default function VerificationSection() {
   const idsToIssue = (params as unknown as { ids: string }).ids?.split(',')
     ? (params as unknown as { ids: string }).ids?.split(',')
     : [(params as unknown as { ids: string }).ids];
+  const idsToIssueKey = idsToIssue?.join(',') ?? '';
   const [credentialsToIssue, setCredentialsToIssue] = useState<
     AvailableCredential[]
   >([]);
@@ -55,7 +55,7 @@ export default function VerificationSection() {
         return false;
       })
     );
-  }, [AvailableCredentials]);
+  }, [AvailableCredentials, idsToIssueKey]);
 
   function handleVerify() {
     const vps = [];
@@ -267,8 +267,4 @@ export default function VerificationSection() {
       </div>
     </>
   );
-}
-
-function isTransactionDataSupportedSelectedFormat(selectedFormat?: string): boolean {
-  return selectedFormat === TRANSACTION_DATA_SUPPORTED_SELECTED_FORMAT;
 }

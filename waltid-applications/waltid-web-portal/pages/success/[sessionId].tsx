@@ -29,7 +29,6 @@ type DisplayCredential = {
 };
 
 const EMPTY_POLICY_GROUP: DisplayPolicyGroup = { policyResults: [] };
-const VERIFIER2_PRESENTED_CREDENTIALS_CACHE_PREFIX = "portal:presented-credentials:";
 
 export default function Success() {
   const env = useContext(EnvContext);
@@ -57,14 +56,11 @@ export default function Success() {
         )
         .then((response) => {
           const sessionInfo = response.data as Record<string, unknown>;
-          const sessionId = router.query.sessionId?.toString();
-          const cachedPresentedCredentials = sessionId ? readCachedPresentedCredentials(sessionId) : null;
           const rawPresentedCredentials = sessionInfo.presented_credentials
             ?? sessionInfo.presentedCredentials
             ?? sessionInfo.presented_presentations
             ?? asRecord(sessionInfo.presented_raw_data)?.vpToken
-            ?? asRecord(sessionInfo.tokenResponse)?.vp_token
-            ?? cachedPresentedCredentials;
+            ?? asRecord(sessionInfo.tokenResponse)?.vp_token;
           const rawPolicyResults = sessionInfo.policy_results
             ?? sessionInfo.policyResults
             ?? asRecord(sessionInfo.authorizationRequest)?.policies;
@@ -150,7 +146,9 @@ export default function Success() {
     () => buildCredentialRows(activeCredential),
     [activeCredential],
   );
-  const activePolicyResults = policyResults[index + 1]?.policyResults
+  const hasSyntheticLeadingPolicyGroup = (policyResults[0]?.policyResults?.length ?? 0) === 0;
+  const activePolicyGroupIndex = index + (hasSyntheticLeadingPolicyGroup ? 1 : 0);
+  const activePolicyResults = policyResults[activePolicyGroupIndex]?.policyResults
     ?? policyResults[index]?.policyResults
     ?? [];
   const transactionDataPolicyResults = useMemo(
@@ -517,7 +515,13 @@ function normalizePresentedCredentials(raw: unknown): DisplayCredential[] {
   }
 
   const credential = toDisplayCredential(record);
-  return credential ? [credential] : [];
+  if (credential) {
+    return [credential];
+  }
+
+  // Verifier2 may return credential payloads as keyed maps (query-id/credential-id -> payload).
+  // If this object is not itself a credential shape, normalize nested values recursively.
+  return Object.values(record).flatMap((entry) => normalizePresentedCredentials(entry));
 }
 
 function normalizePolicyResults(raw: unknown): DisplayPolicyGroup[] {
@@ -738,20 +742,6 @@ function formatPolicyLabel(policyId: string): string {
 function toPolicyDisplayName(policyId: string): string {
   const label = formatPolicyLabel(policyId);
   return /policy$/i.test(label) ? label : `${label} Policy`;
-}
-
-function readCachedPresentedCredentials(sessionId: string): unknown {
-  if (typeof window === "undefined") {
-    return null;
-  }
-
-  try {
-    const raw = window.sessionStorage.getItem(`${VERIFIER2_PRESENTED_CREDENTIALS_CACHE_PREFIX}${sessionId}`);
-    return raw ? JSON.parse(raw) : null;
-  } catch (error) {
-    console.warn("Could not read cached presented credentials snapshot", error);
-    return null;
-  }
 }
 
 function getCredentialTitle(credential: DisplayCredential | undefined, vctName: string | null): string {
