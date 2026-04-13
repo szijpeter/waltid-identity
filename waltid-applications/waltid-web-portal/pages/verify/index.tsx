@@ -243,7 +243,7 @@ export default function Verification() {
     return () => {
       cancelled = true;
     };
-  }, [router.isReady, router.query, AvailableCredentials, env, router]);
+  }, [router.isReady, router.query, AvailableCredentials, env]);
 
   async function copyCurrentURLToClipboard() {
     navigator.clipboard.writeText(verifyURL).then(
