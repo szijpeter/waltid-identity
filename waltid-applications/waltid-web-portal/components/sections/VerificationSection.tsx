@@ -29,11 +29,12 @@ export default function VerificationSection() {
   }
 
   const params = router.query;
-
-  const idsToIssue = (params as unknown as { ids: string }).ids?.split(',')
-    ? (params as unknown as { ids: string }).ids?.split(',')
-    : [(params as unknown as { ids: string }).ids];
-  const idsToIssueKey = idsToIssue?.join(',') ?? '';
+  const idsRaw = params.ids;
+  const idsToIssue = (Array.isArray(idsRaw) ? idsRaw : typeof idsRaw === "string" ? [idsRaw] : [])
+    .flatMap((value) => value.split(","))
+    .map((value) => value.trim())
+    .filter((value) => value.length > 0);
+  const idsToIssueKey = idsToIssue.join(',');
   const [credentialsToIssue, setCredentialsToIssue] = useState<
     AvailableCredential[]
   >([]);
@@ -48,7 +49,7 @@ export default function VerificationSection() {
     setCredentialsToIssue(
       AvailableCredentials.filter((cred) => {
         for (const id of idsToIssue) {
-          if (id.toString() == cred.id.toString()) {
+          if (id === cred.id.toString()) {
             return true;
           }
         }

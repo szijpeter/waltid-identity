@@ -104,15 +104,19 @@ export default function Verification() {
             issuerMetadataConfigSelector[standardVersion],
             selectedCredentialType,
           );
+          const transactionAmount = readRequiredQueryParam(router.query.tx_amount, "tx_amount");
+          const transactionCurrency = readRequiredQueryParam(router.query.tx_currency, "tx_currency").toUpperCase();
+          const transactionPayee = readRequiredQueryParam(router.query.tx_payee, "tx_payee");
+          const transactionReference = readRequiredQueryParam(router.query.tx_reference, "tx_reference");
           const encodedTransactionData = encodeBase64Url(JSON.stringify({
             type: TRANSACTION_DATA_TYPE,
             credential_ids: [TRANSACTION_CREDENTIAL_ID],
             transaction_data_hashes_alg: ["sha-256"],
             require_cryptographic_holder_binding: true,
-            amount: router.query.tx_amount?.toString() ?? '42.00',
-            currency: (router.query.tx_currency?.toString() ?? 'EUR').toUpperCase(),
-            payee: router.query.tx_payee?.toString() ?? 'ACME Corp',
-            reference: router.query.tx_reference?.toString() ?? 'INV-2026-042',
+            amount: transactionAmount,
+            currency: transactionCurrency,
+            payee: transactionPayee,
+            reference: transactionReference,
           }));
 
           const response = await axios.post(`${verifier2BaseUrl}/verification-session/create`, {
@@ -155,6 +159,15 @@ export default function Verification() {
               return;
             }
             router.push(`/success/${data.sessionId}?engine=verifier2`);
+          }).catch((pollError: any) => {
+            if (cancelled) {
+              return;
+            }
+            const pollErrorMessage = pollError?.response?.data?.errorDescription
+              || pollError?.response?.data?.message
+              || pollError?.message
+              || "Could not fetch verification session status.";
+            setError(pollErrorMessage);
           });
 
           return;
@@ -387,4 +400,12 @@ function resolveSdJwtVctFromIssuerMetadata(
     throw new Error(`No SD-JWT VC configuration found for selected credential type: ${credentialType}`);
   }
   return vct;
+}
+
+function readRequiredQueryParam(value: string | string[] | undefined, queryName: string): string {
+  const normalized = (Array.isArray(value) ? value[0] : value)?.trim();
+  if (!normalized) {
+    throw new Error(`Missing required transaction parameter: ${queryName}`);
+  }
+  return normalized;
 }
