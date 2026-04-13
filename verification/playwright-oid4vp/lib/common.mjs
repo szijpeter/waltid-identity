@@ -13,9 +13,9 @@ export const defaults = {
   artifactsBaseDir:
     process.env.PLAYWRIGHT_ARTIFACTS_DIR ??
     path.join(process.env.HOME ?? process.cwd(), ".waltid-playwright-artifacts"),
-  headless: envBool("HEADLESS", false),
-  slowMo: Number(process.env.SLOW_MO ?? 250),
-  timeoutMs: Number(process.env.TIMEOUT_MS ?? 180000),
+  headless: envBool("HEADLESS", true),
+  slowMo: Number(process.env.SLOW_MO ?? 0),
+  timeoutMs: Number(process.env.TIMEOUT_MS ?? 90000),
 };
 
 export const issuerKey = {

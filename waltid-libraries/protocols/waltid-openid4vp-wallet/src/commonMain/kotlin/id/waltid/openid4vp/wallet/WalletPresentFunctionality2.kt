@@ -46,6 +46,11 @@ object WalletPresentFunctionality2 {
 
     private val log = KotlinLogging.logger { }
 
+    private val minifiedJson = Json {
+        encodeDefaults = true
+        explicitNulls = false
+    }
+
     private val http = HttpClient {
         install(ContentNegotiation) {
             json()
@@ -486,7 +491,9 @@ object WalletPresentFunctionality2 {
         }
 
         log.trace { "Wallet presentation: Calculating hash for SD-JWT kb from: $stringToHash" }
-        val sdHash = calculateSha256Base64Url(stringToHash)
+        // Ensure no double tildes in the hashable string if disclosed already ended with one
+        val normalizedStringToHash = stringToHash.replace("~~", "~")
+        val sdHash = calculateSha256Base64Url(normalizedStringToHash)
         val decodedTransactionData = validateRequestTransactionData(transactionData)
         val transactionDataHashAlgorithm = resolveHashAlgorithm(decodedTransactionData)
         val transactionDataHashes = transactionDataHashAlgorithm?.let {
@@ -522,7 +529,10 @@ object WalletPresentFunctionality2 {
                 }
             }
         }
-        return holderKey.signJws(plaintext = kbJwtPayload.toString().encodeToByteArray(), headers = jwsHeaders)
+        val payloadString = minifiedJson.encodeToString(JsonObject.serializer(), kbJwtPayload)
+        log.trace { "KB-JWT Payload (minified): $payloadString" }
+
+        return holderKey.signJws(plaintext = payloadString.encodeToByteArray(), headers = jwsHeaders)
     }
 
 }

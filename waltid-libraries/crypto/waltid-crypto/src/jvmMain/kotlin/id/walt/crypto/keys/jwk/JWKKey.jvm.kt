@@ -229,35 +229,32 @@ actual class JWKKey actual constructor(
 
         log.trace { "Signing JWS, Key: ${toString()}" }
 
-        // Nimbus signature:
-        val jwsObject = JWSObject(
-            JWSHeader.parse(headers.toMutableMap().apply {
-                put("alg", _internalJwsAlgorithm.toString().toJsonElement())
-            }.toJsonObject().toString()),
-            Payload(plaintext)
-        )
-        /*jwsObject.sign(_internalSigner)
-
-        val nimbusJws = jwsObject.serialize()*/
-
-        // TODO for Custom signature: check if JSON encoding of JsonObject for header & payload is correct (or 1 space is missing?)
-        // Custom signature:
-        /*val appendedHeader = HashMap(headers).apply {
-            put("alg", _internalJwsAlgorithm.name)
-        }*/
-
-        val payloadToSign = jwsObject.header.toBase64URL().toString() + '.' + jwsObject.payload.toBase64URL().toString()
-        var signed = signRaw(payloadToSign.encodeToByteArray())
-
-        if (keyType in KeyTypes.EC_KEYS) { // Convert DER to IEEE P1363
-            log.trace { "Converted DER to IEEE P1363 signature" }
-            signed = EccUtils.convertDERtoIEEEP1363(signed)
+        // Use a consistent header construction
+        val fullHeaders = headers.toMutableMap().apply {
+            put("alg", _internalJwsAlgorithm.toString().toJsonElement())
         }
 
-        val customJws = "$payloadToSign.${signed.encodeToBase64Url()}"
-        log.trace { "Signed JWS: $customJws" }
+        // We use Nimbus JWSHeader for consistent serialization that matches what most verifiers expect
+        val header = JWSHeader.parse(fullHeaders.toJsonObject().toString())
+        val payload = Payload(plaintext)
 
-        return customJws
+        val headerBase64 = header.toBase64URL().toString()
+        val payloadBase64 = payload.toBase64URL().toString()
+        val signingInput = "$headerBase64.$payloadBase64"
+
+        log.trace { "Signing input (base64url): $signingInput" }
+
+        var signatureBytes = signRaw(signingInput.encodeToByteArray())
+
+        if (keyType in KeyTypes.EC_KEYS) {
+            log.trace { "Converting DER signature to IEEE P1363 for EC key" }
+            signatureBytes = EccUtils.convertDERtoIEEEP1363(signatureBytes)
+        }
+
+        val jws = "$signingInput.${signatureBytes.encodeToBase64Url()}"
+        log.trace { "Generated JWS: $jws" }
+
+        return jws
     }
 
     /**
@@ -380,30 +377,37 @@ actual class JWKKey actual constructor(
     }*/
 
     actual override suspend fun verifyJws(signedJws: String): Result<JsonElement> {
+        log.trace { "Verifying JWS: $signedJws" }
 
         // Nimbus verification (handles IEEE P1363):
         return runCatching {
             val jwsObject = JWSObject.parse(signedJws)
-
-            check(jwsObject.verify(_internalVerifier)) { "Signature check failed." }
+            if (!jwsObject.verify(_internalVerifier)) {
+                 throw IllegalStateException("Nimbus verification failed (likely mathematical signature mismatch)")
+            }
 
             val objectElements = jwsObject.payload.toJSONObject()
                 .mapValues { it.value.toJsonElement() }
 
             JsonObject(objectElements)
         }.recoverCatching {
-            // Custom verification (handles DER):
-            val (header, payload, signature) = signedJws.split(".")
+            // Custom verification (handles DER and provides fallback):
+            log.debug(it) { "> Fallback JWS verification for: $signedJws" }
 
-            log.debug(it) { "> Signature verification: Fallback verification checking... (NIMBUS VERIFICATION FAILED) for: $signedJws" }
-            
+            val parts = signedJws.split(".")
+            if (parts.size != 3) throw IllegalArgumentException("Invalid JWS format: expected 3 parts, got ${parts.size}")
+
+            val (header, payload, signature) = parts
+            val signingInput = "$header.$payload"
+            log.trace { "Verification signing input (base64url): $signingInput" }
+
             var decodedSignature = signature.decodeFromBase64Url()
             if (keyType in KeyTypes.EC_KEYS && decodedSignature.size in setOf(64, 96, 132)) {
-                log.trace { "Converting P1363 signature to DER for fallback JVM verification" }
+                log.trace { "Transcoding P1363 signature to DER for JCA verification" }
                 decodedSignature = EccUtils.convertP1363toDER(decodedSignature)
             }
 
-            val res = verifyRaw(decodedSignature, "$header.$payload".encodeToByteArray()).map {
+            val res = verifyRaw(decodedSignature, signingInput.encodeToByteArray()).map {
                 it.decodeToString().decodeJws().payload
             }
             res.getOrThrow()

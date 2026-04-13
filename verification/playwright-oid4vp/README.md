@@ -78,9 +78,11 @@ PRESENTATION_FORMAT=mso_mdoc npm run record:scenario:verifier2
 
 npm run record:suite:main
 npm run record:suite:pr1
+npm run record:suite:pr1:fast
 npm run record:suite:pr1:matrix
 npm run record:suite:pr1:portal
 npm run record:suite:pr2
+npm run record:suite:pr2:fast
 INCLUDE_MDOC=true npm run record:suite:pr1:portal
 ```
 
@@ -137,7 +139,7 @@ The harness-specific Caddy override in this directory is configured with this se
 ```bash
 HEADLESS=true
 SLOW_MO=0
-TIMEOUT_MS=180000
+TIMEOUT_MS=90000
 PLAYWRIGHT_ARTIFACTS_DIR=/absolute/path/for/artifacts
 
 PORTAL_BASE_URL=http://localhost:7102

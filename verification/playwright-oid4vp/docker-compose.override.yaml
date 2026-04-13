@@ -2,6 +2,10 @@ services:
   caddy:
     volumes:
       - ../verification/playwright-oid4vp/Caddyfile:/etc/caddy/Caddyfile
+  wallet-api:
+    build:
+      context: ../
+      dockerfile: waltid-services/waltid-wallet-api/Dockerfile
   verifier-api:
     environment:
       VERIFIER_API_PORT: "7303"
@@ -15,6 +19,9 @@ services:
       - "7304:7004"
     volumes:
       - ../verification/playwright-oid4vp/verifier-api2/verifier-service.conf:/waltid-verifier-api2/config/verifier-service.conf
+    build:
+      context: ../
+      dockerfile: waltid-services/waltid-verifier-api2/Dockerfile
   web-portal:
     environment:
       NEXT_PUBLIC_VERIFIER: "http://$SERVICE_HOST:7303"
